@@ -359,6 +359,20 @@ func (this *MysqlConnection) ReadRows(tableMapEvent *TableMapLogEvent, eventType
 	return rows
 }
 
+func (this *MysqlConnection) isSqlTypeString(sqlType JavaType) bool {
+
+	isString := false
+	switch sqlType {
+	case INTEGER, TINYINT, SMALLINT, BIGINT, BIT:
+	case REAL, DOUBLE, DECIMAL, TIMESTAMP, TIME, DATE, CHAR, VARCHAR, BINARY, VARBINARY, LONGVARBINARY:
+		isString = true
+	default:
+		isString = true
+	}
+
+	return isString
+}
+
 func (this *MysqlConnection) transformToSqlInsert(tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
 
 	sql := fmt.Sprintf("insert into %s.%s(", tableMapEvent.DbName, tableMapEvent.TblName)
@@ -373,9 +387,17 @@ func (this *MysqlConnection) transformToSqlInsert(tableMapEvent *TableMapLogEven
 
 	for index, column := range columns {
 		if index == column_len-1 {
-			sql += column.GetValue() + ")"
+			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+				sql += "'" + column.GetValue() + "')"
+			} else {
+				sql += column.GetValue() + ")"
+			}
 		} else {
-			sql += column.GetValue() + ","
+			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+				sql += "'" + column.GetValue() + "',"
+			} else {
+				sql += column.GetValue() + ","
+			}
 		}
 	}
 
@@ -387,7 +409,14 @@ func (this *MysqlConnection) transformToSqlDelete(tableMapEvent *TableMapLogEven
 
 	for _, column := range columns {
 		if column.GetIsKey() {
-			sql += column.GetName() + "=" + column.GetValue() + ";"
+			sql += column.GetName() + "="
+
+			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+				sql += `'` + column.GetValue() + "';"
+			} else {
+				sql += column.GetValue() + ";"
+			}
+
 			break
 		}
 	}
@@ -406,9 +435,18 @@ func (this *MysqlConnection) transformToSqlDelete(tableMapEvent *TableMapLogEven
 
 	for index, column := range columns {
 		if index == column_len-1 {
-			regretsql += column.GetValue() + ")"
+
+			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+				regretsql += `'` + column.GetValue() + "')"
+			} else {
+				regretsql += column.GetValue() + ")"
+			}
 		} else {
-			regretsql += column.GetValue() + ","
+			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+				regretsql += "'" + column.GetValue() + "',"
+			} else {
+				regretsql += column.GetValue() + ","
+			}
 		}
 	}
 
@@ -419,8 +457,13 @@ func (this *MysqlConnection) transformToSqlDelete(tableMapEvent *TableMapLogEven
 func (this *MysqlConnection) transformToSqlUpdate(tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
 	// 更新字段索引
 	updateCount := 0
-	for _, column := range after {
+	for index, column := range after {
 		if column.GetUpdated() {
+			updateCount += 1
+		}
+
+		if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
+			(!after[index].GetIsNull() || after[index].GetValue() != "") {
 			updateCount += 1
 		}
 	}
@@ -430,22 +473,42 @@ func (this *MysqlConnection) transformToSqlUpdate(tableMapEvent *TableMapLogEven
 	updateCount2 := 0
 	sql := fmt.Sprintf("update %s.%s set ", tableMapEvent.DbName, tableMapEvent.TblName)
 	for index, column := range after {
+
 		if column.GetUpdated() {
 			updateCount2 += 1
 			if updateCount != updateCount2 {
-				sql += column.GetName() + "=" + column.GetValue() + ", "
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "', "
+				} else {
+					sql += column.GetName() + "=" + column.GetValue() + ", "
+				}
 			} else {
-				sql += column.GetName() + "=" + column.GetValue()
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "' "
+				} else {
+					sql += column.GetName() + "=" + column.GetValue()
+				}
+
 			}
 		}
 
 		if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
 			(!after[index].GetIsNull() || after[index].GetValue() != "") {
 			updateCount2 += 1
+
 			if updateCount != updateCount2 {
-				sql += column.GetName() + "=" + column.GetValue() + ", "
+
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "', "
+				} else {
+					sql += column.GetName() + "=" + column.GetValue() + ", "
+				}
 			} else {
-				sql += column.GetName() + "=" + column.GetValue()
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "'"
+				} else {
+					sql += column.GetName() + "=" + column.GetValue()
+				}
 			}
 		}
 
@@ -465,9 +528,18 @@ func (this *MysqlConnection) transformToSqlUpdate(tableMapEvent *TableMapLogEven
 		if column.GetUpdated() {
 			updateCount2 += 1
 			if updateCount != updateCount2 {
-				sqlregret += column.GetName() + "=" + before[index].GetValue() + ", "
+
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sqlregret += column.GetName() + "='" + before[index].GetValue() + "', "
+				} else {
+					sqlregret += column.GetName() + "=" + before[index].GetValue() + ", "
+				}
 			} else {
-				sqlregret += column.GetName() + "=" + before[index].GetValue()
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sqlregret += column.GetName() + "='" + before[index].GetValue() + "'"
+				} else {
+					sqlregret += column.GetName() + "=" + before[index].GetValue()
+				}
 			}
 		}
 
