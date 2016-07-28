@@ -9,7 +9,6 @@ import (
 
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/SDHM/sqlregret/protocol"
-	"github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -228,13 +227,14 @@ func (this *MysqlConnection) ReadQueryEvent(logHeader *LogHeader, logbuf *LogBuf
 			} else {
 				header := CreateHeader(this.binlogFileName, logHeader, nil, nil, nil)
 				entry := CreateEntry(header, protocol.EntryType_TRANSACTIONBEGIN, value)
-				// fmt.Println(header)
-				seelog.Debug(entry)
+				fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
 			}
+
+			// fmt.Println("开始事务:", sql)
 		}
 	case "commit":
 		{
-			fmt.Println("DDL statement Commit:", sql)
+			// fmt.Println("提交事务:", sql)
 		}
 	default:
 		{
@@ -249,8 +249,9 @@ func (this *MysqlConnection) ReadQueryEvent(logHeader *LogHeader, logbuf *LogBuf
 						break
 					}
 				}
+				// fmt.Printf("alter语句:\n%s\n", sql)
 			} else {
-				fmt.Println("unhandle ddl sql:", sql)
+				// fmt.Printf("DDL语句:\n%s\n", sql)
 			}
 		}
 	}
@@ -308,7 +309,7 @@ func (this *MysqlConnection) ReadRowEvent(logHeader *LogHeader, event_type int, 
 	} else {
 		header := CreateHeader(this.binlogFileName, logHeader, &tableMapEvent.DbName, &tableMapEvent.TblName, &eventType)
 		entry := CreateEntry(header, protocol.EntryType_ROWDATA, value)
-		seelog.Debug(entry)
+		fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
 	}
 }
 
@@ -321,7 +322,7 @@ func (this *MysqlConnection) ReadXidEvent(logHeader *LogHeader, logbuf *LogBuffe
 	} else {
 		header := CreateHeader(this.binlogFileName, logHeader, nil, nil, nil)
 		entry := CreateEntry(header, protocol.EntryType_TRANSACTIONEND, value)
-		seelog.Debug(entry)
+		fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
 	}
 
 }
@@ -341,28 +342,149 @@ func (this *MysqlConnection) ReadRows(tableMapEvent *TableMapLogEvent, eventType
 		row := new(protocol.RowData)
 
 		if eventType == protocol.EventType_INSERT {
-			fmt.Println("这是一条插入语句 begin")
 			row.AfterColumns = this.ReadRow(tableMapEvent, true, row, columns, row_bitmap1, logbuf)
-			fmt.Println("这是一条插入语句 end")
+			this.transformToSqlInsert(tableMapEvent, row.AfterColumns)
 		} else if eventType == protocol.EventType_DELETE {
-			fmt.Println("这是一条删除语句 begin")
 			row.BeforeColumns = this.ReadRow(tableMapEvent, false, row, columns, row_bitmap1, logbuf)
-			fmt.Println("这是一条删除语句 end")
+			this.transformToSqlDelete(tableMapEvent, row.BeforeColumns)
 		} else if eventType == protocol.EventType_UPDATE {
-			fmt.Println("这是一条更新语句 begin")
-			fmt.Println("更新之前的开始")
 			row.BeforeColumns = this.ReadRow(tableMapEvent, false, row, columns, row_bitmap1, logbuf)
-			fmt.Println("更新之前的结束")
 			row_bitmap2 := logbuf.GetVarLenBytes((int(count) + 7) / 8)
-			fmt.Println("更新之后的开始")
 			row.AfterColumns = this.ReadRow(tableMapEvent, true, row, columns, row_bitmap2, logbuf)
-			fmt.Println("更新之后的开结束")
-			fmt.Println("这是一条更新语句 end")
+			this.transformToSqlUpdate(tableMapEvent, row.BeforeColumns, row.AfterColumns)
 		}
 
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func (this *MysqlConnection) transformToSqlInsert(tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
+
+	sql := fmt.Sprintf("insert into %s.%s(", tableMapEvent.DbName, tableMapEvent.TblName)
+	column_len := len(columns)
+	for index, column := range columns {
+		if index == column_len-1 {
+			sql += column.GetName() + ") values("
+		} else {
+			sql += column.GetName() + ","
+		}
+	}
+
+	for index, column := range columns {
+		if index == column_len-1 {
+			sql += column.GetValue() + ")"
+		} else {
+			sql += column.GetValue() + ","
+		}
+	}
+
+	fmt.Printf("插入语句为:%s\n", sql)
+}
+
+func (this *MysqlConnection) transformToSqlDelete(tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
+	sql := fmt.Sprintf("delete from %s.%s where ", tableMapEvent.DbName, tableMapEvent.TblName)
+
+	for _, column := range columns {
+		if column.GetIsKey() {
+			sql += column.GetName() + "=" + column.GetValue() + ";"
+			break
+		}
+	}
+
+	fmt.Printf("删除语句为:%s\n", sql)
+
+	regretsql := fmt.Sprintf("insert into %s.%s(", tableMapEvent.DbName, tableMapEvent.TblName)
+	column_len := len(columns)
+	for index, column := range columns {
+		if index == column_len-1 {
+			regretsql += column.GetName() + ") values("
+		} else {
+			regretsql += column.GetName() + ","
+		}
+	}
+
+	for index, column := range columns {
+		if index == column_len-1 {
+			regretsql += column.GetValue() + ")"
+		} else {
+			regretsql += column.GetValue() + ","
+		}
+	}
+
+	fmt.Printf("对应的反向插入语句为:%s\n", regretsql)
+
+}
+
+func (this *MysqlConnection) transformToSqlUpdate(tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
+	// 更新字段索引
+	updateCount := 0
+	for _, column := range after {
+		if column.GetUpdated() {
+			updateCount += 1
+		}
+	}
+
+	keyName := ""
+	keyValue := ""
+	updateCount2 := 0
+	sql := fmt.Sprintf("update %s.%s set ", tableMapEvent.DbName, tableMapEvent.TblName)
+	for index, column := range after {
+		if column.GetUpdated() {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				sql += column.GetName() + "=" + column.GetValue() + ", "
+			} else {
+				sql += column.GetName() + "=" + column.GetValue()
+			}
+		}
+
+		if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
+			(!after[index].GetIsNull() || after[index].GetValue() != "") {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				sql += column.GetName() + "=" + column.GetValue() + ", "
+			} else {
+				sql += column.GetName() + "=" + column.GetValue()
+			}
+		}
+
+		if column.GetIsKey() {
+			keyValue = column.GetValue()
+			keyName = column.GetName()
+		}
+	}
+
+	sql += fmt.Sprintf(" where %s=%s", keyName, keyValue)
+
+	fmt.Println("update 语句:", sql)
+
+	updateCount2 = 0
+	sqlregret := fmt.Sprintf("update %s.%s set ", tableMapEvent.DbName, tableMapEvent.TblName)
+	for index, column := range after {
+		if column.GetUpdated() {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				sqlregret += column.GetName() + "=" + before[index].GetValue() + ", "
+			} else {
+				sqlregret += column.GetName() + "=" + before[index].GetValue()
+			}
+		}
+
+		if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
+			(!after[index].GetIsNull() && after[index].GetValue() != "") {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				sqlregret += column.GetName() + "=\"\"" + ", "
+			} else {
+				sqlregret += column.GetName() + "=\"\""
+			}
+		}
+	}
+
+	sqlregret += fmt.Sprintf(" where %s=%s", keyName, keyValue)
+
+	fmt.Println("对应的反向 update 语句:", sqlregret)
 }
 
 func (this *MysqlConnection) fetchValue(logbuf *LogBuffer, columnType byte, meta int, isBinary bool) (interface{}, JavaType, int) {
@@ -893,7 +1015,7 @@ func (this *MysqlConnection) ReadRow(tableMapEvent *TableMapLogEvent, isAfter bo
 	tableMeta := this.getTableMeta(tableMapEvent.DbName, tableMapEvent.TblName, false)
 	if nil == tableMeta {
 		err := errors.New("not found [" + tableMapEvent.DbName + "." + tableMapEvent.TblName + "] in db , pls check!")
-		this.logger.Fatal(err.Error())
+		fmt.Println(err.Error())
 	}
 
 	pro_columns := make([]*protocol.Column, 0, 10)
@@ -979,7 +1101,7 @@ func (this *MysqlConnection) ReadRow(tableMapEvent *TableMapLogEvent, isAfter bo
 		}
 		column.SetSqlType(int32(javaType))
 		column.SetUpdated(isAfter && this.isUpdate(row.BeforeColumns, column.Value, i))
-		fmt.Println("column: ", i, column)
+		// fmt.Println("column: ", i, column)
 		pro_columns = append(pro_columns, column)
 	}
 	return pro_columns
