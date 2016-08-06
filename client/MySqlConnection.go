@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/SDHM/sqlregret/protocol"
@@ -141,6 +142,7 @@ func (this *MysqlConnection) Dump(position uint32, filename string) error {
 			this.logger.Error(err.Error())
 			return err
 		} else {
+			fmt.Println("len:", len(by))
 			header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
 
 			switch event_type := header.GetEventType(); event_type {
@@ -296,7 +298,7 @@ func (this *MysqlConnection) ReadRowEvent(logHeader *LogHeader, event_type int, 
 	columns := tableMapEvent.ColumnInfo
 	eventType := getEventType(event_type)
 
-	rows := this.ReadRows(tableMapEvent, eventType, columns, logbuf)
+	rows := this.ReadRows(logHeader, tableMapEvent, eventType, columns, logbuf)
 
 	row_change := new(protocol.RowChange)
 	row_change.SetTableId(table_id)
@@ -333,7 +335,7 @@ func (this *MysqlConnection) ReadRotateEvent(logbuf *LogBuffer) {
 	this.context.SetLogPosition(position)
 }
 
-func (this *MysqlConnection) ReadRows(tableMapEvent *TableMapLogEvent, eventType protocol.EventType, columns []*Column, logbuf *LogBuffer) []*protocol.RowData {
+func (this *MysqlConnection) ReadRows(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, eventType protocol.EventType, columns []*Column, logbuf *LogBuffer) []*protocol.RowData {
 	count := len(columns)
 	rows := make([]*protocol.RowData, 0)
 	var restlen int = logbuf.GetRestLength()
@@ -343,15 +345,15 @@ func (this *MysqlConnection) ReadRows(tableMapEvent *TableMapLogEvent, eventType
 
 		if eventType == protocol.EventType_INSERT {
 			row.AfterColumns = this.ReadRow(tableMapEvent, true, row, columns, row_bitmap1, logbuf)
-			this.transformToSqlInsert(tableMapEvent, row.AfterColumns)
+			this.transformToSqlInsert(logHeader, tableMapEvent, row.AfterColumns)
 		} else if eventType == protocol.EventType_DELETE {
 			row.BeforeColumns = this.ReadRow(tableMapEvent, false, row, columns, row_bitmap1, logbuf)
-			this.transformToSqlDelete(tableMapEvent, row.BeforeColumns)
+			this.transformToSqlDelete(logHeader, tableMapEvent, row.BeforeColumns)
 		} else if eventType == protocol.EventType_UPDATE {
 			row.BeforeColumns = this.ReadRow(tableMapEvent, false, row, columns, row_bitmap1, logbuf)
 			row_bitmap2 := logbuf.GetVarLenBytes((int(count) + 7) / 8)
 			row.AfterColumns = this.ReadRow(tableMapEvent, true, row, columns, row_bitmap2, logbuf)
-			this.transformToSqlUpdate(tableMapEvent, row.BeforeColumns, row.AfterColumns)
+			this.transformToSqlUpdate(logHeader, tableMapEvent, row.BeforeColumns, row.AfterColumns)
 		}
 
 		rows = append(rows, row)
@@ -373,7 +375,7 @@ func (this *MysqlConnection) isSqlTypeString(sqlType JavaType) bool {
 	return isString
 }
 
-func (this *MysqlConnection) transformToSqlInsert(tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
+func (this *MysqlConnection) transformToSqlInsert(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
 
 	sql := fmt.Sprintf("insert into %s.%s(", tableMapEvent.DbName, tableMapEvent.TblName)
 	column_len := len(columns)
@@ -401,10 +403,11 @@ func (this *MysqlConnection) transformToSqlInsert(tableMapEvent *TableMapLogEven
 		}
 	}
 
-	fmt.Printf("插入语句为:%s\n", sql)
+	timeSnap := time.Unix(logHeader.timeSnamp, 0)
+	fmt.Printf("时间戳:%s\t插入语句为:%s\n\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
 }
 
-func (this *MysqlConnection) transformToSqlDelete(tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
+func (this *MysqlConnection) transformToSqlDelete(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
 	sql := fmt.Sprintf("delete from %s.%s where ", tableMapEvent.DbName, tableMapEvent.TblName)
 
 	for _, column := range columns {
@@ -421,7 +424,8 @@ func (this *MysqlConnection) transformToSqlDelete(tableMapEvent *TableMapLogEven
 		}
 	}
 
-	fmt.Printf("删除语句为:%s\n", sql)
+	timeSnap := time.Unix(logHeader.timeSnamp, 0)
+	fmt.Printf("时间戳:%s\t删除语句为:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
 
 	regretsql := fmt.Sprintf("insert into %s.%s(", tableMapEvent.DbName, tableMapEvent.TblName)
 	column_len := len(columns)
@@ -450,11 +454,11 @@ func (this *MysqlConnection) transformToSqlDelete(tableMapEvent *TableMapLogEven
 		}
 	}
 
-	fmt.Printf("对应的反向插入语句为:%s\n", regretsql)
+	fmt.Printf("时间戳:%s\t对应的反向插入语句为:%s\n\n", timeSnap.Format("2006-01-02 15:04:05"), regretsql)
 
 }
 
-func (this *MysqlConnection) transformToSqlUpdate(tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
+func (this *MysqlConnection) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
 	// 更新字段索引
 	updateCount := 0
 	for index, column := range after {
@@ -520,7 +524,8 @@ func (this *MysqlConnection) transformToSqlUpdate(tableMapEvent *TableMapLogEven
 
 	sql += fmt.Sprintf(" where %s=%s", keyName, keyValue)
 
-	fmt.Println("update 语句:", sql)
+	timeSnap := time.Unix(logHeader.timeSnamp, 0)
+	fmt.Printf("时间戳:%s\tupdate 语句:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
 
 	updateCount2 = 0
 	sqlregret := fmt.Sprintf("update %s.%s set ", tableMapEvent.DbName, tableMapEvent.TblName)
@@ -556,7 +561,7 @@ func (this *MysqlConnection) transformToSqlUpdate(tableMapEvent *TableMapLogEven
 
 	sqlregret += fmt.Sprintf(" where %s=%s", keyName, keyValue)
 
-	fmt.Println("对应的反向 update 语句:", sqlregret)
+	fmt.Printf("时间戳:%s\t对应的反向 update 语句:%s\n\n", timeSnap.Format("2006-01-02 15:04:05"), sqlregret)
 }
 
 func (this *MysqlConnection) fetchValue(logbuf *LogBuffer, columnType byte, meta int, isBinary bool) (interface{}, JavaType, int) {
