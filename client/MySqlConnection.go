@@ -10,12 +10,16 @@ import (
 
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/SDHM/sqlregret/protocol"
+	"github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )
 
 const (
 	DATETIMEF_INT_OFS int64 = 0x8000000000
 	TIMEF_INT_OFS     int64 = 0x800000
+
+	BINLOG_DUMP_NON_BLOCK           uint16 = 1
+	BINLOG_SEND_ANNOTATE_ROWS_EVENT uint16 = 2
 )
 
 type EntryFunc func(transaction *protocol.Entry)
@@ -109,7 +113,7 @@ func (this *MysqlConnection) Register() error {
 	}
 
 	if _, err := this.readPacket(); err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return err
 	} else {
 		//fmt.Println(by)
@@ -130,7 +134,7 @@ func (this *MysqlConnection) Dump(position uint32, filename string) error {
 	data = append(data, []byte(filename)...)
 
 	if err := this.writePacket(data); err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return err
 	}
 
@@ -139,7 +143,7 @@ func (this *MysqlConnection) Dump(position uint32, filename string) error {
 
 	for {
 		if by, err := this.readPacket(); err != nil {
-			this.logger.Error(err.Error())
+			seelog.Error(err.Error())
 			return err
 		} else {
 			fmt.Println("len:", len(by))
@@ -156,6 +160,7 @@ func (this *MysqlConnection) Dump(position uint32, filename string) error {
 				}
 			case XID_EVENT:
 				{
+					fmt.Println("TRANSACTION COMMIT!")
 					this.ReadXidEvent(header, NewLogBuffer(by[20:]))
 				}
 			case TABLE_MAP_EVENT:
@@ -192,11 +197,32 @@ func (this *MysqlConnection) Dump(position uint32, filename string) error {
 				}
 			case STOP_EVENT:
 				{
-					this.logger.Debug("stop\n")
+					fmt.Println("STOP_EVENT HAPPEND!")
+					seelog.Debug("stop\n")
 				}
 			case FORMAT_DESCRIPTION_EVENT:
 				{
 					this.ReadFormatDescriptionEvent(NewLogBuffer(by[20:]))
+				}
+			case GTID_EVENT:
+				{
+					fmt.Println("GTID_EVENT NOT HANDLE")
+				}
+			case GTID_LIST_EVENT:
+				{
+					fmt.Println("GTID_LIST_EVENT NOT HANDLE")
+				}
+			case ANONYMOUS_GTID_EVENT:
+				{
+					fmt.Println("ANONYMOUS_GTID_EVENT NOT HANDLE")
+				}
+			case PREVIOUS_GTIDS_EVENT:
+				{
+					fmt.Println("PREVIOUS_GTIDS_EVENT NOT HANDLE")
+				}
+			case GTID_LOG_EVENT:
+				{
+					fmt.Println("GTID_LOG_EVENT NOT HANDLE")
 				}
 			default:
 				fmt.Println("接收到未识别的命令头：", event_type)
@@ -224,19 +250,19 @@ func (this *MysqlConnection) ReadQueryEvent(logHeader *LogHeader, logbuf *LogBuf
 		{
 			transactionBegin := CreateTransactionBegin(queryEvent.GetSessionId())
 
-			if value, err := proto.Marshal(transactionBegin); nil != err {
+			if _, err := proto.Marshal(transactionBegin); nil != err {
 				fmt.Println("Marshal failed!", err.Error())
 			} else {
-				header := CreateHeader(this.binlogFileName, logHeader, nil, nil, nil)
-				entry := CreateEntry(header, protocol.EntryType_TRANSACTIONBEGIN, value)
-				fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
+				// header := CreateHeader(this.binlogFileName, logHeader, nil, nil, nil)
+				// entry := CreateEntry(header, protocol.EntryType_TRANSACTIONBEGIN, value)
+				fmt.Printf("Value:%s\n", transactionBegin)
 			}
 
-			// fmt.Println("开始事务:", sql)
+			fmt.Println("开始事务:", sql)
 		}
 	case "commit":
 		{
-			// fmt.Println("提交事务:", sql)
+			fmt.Println("提交事务:", sql)
 		}
 	default:
 		{
@@ -251,9 +277,9 @@ func (this *MysqlConnection) ReadQueryEvent(logHeader *LogHeader, logbuf *LogBuf
 						break
 					}
 				}
-				// fmt.Printf("alter语句:\n%s\n", sql)
+				fmt.Printf("alter语句:\n%s\n", sql)
 			} else {
-				// fmt.Printf("DDL语句:\n%s\n", sql)
+				fmt.Printf("DDL语句:\n%s\n", sql)
 			}
 		}
 	}
@@ -319,14 +345,14 @@ func (this *MysqlConnection) ReadXidEvent(logHeader *LogHeader, logbuf *LogBuffe
 	xid := int64(logbuf.GetUInt64())
 	end := CreateTransactionEnd(xid)
 
-	if value, err := proto.Marshal(end); nil != err {
+	// if value, err := proto.Marshal(end); nil != err {
 
-	} else {
-		header := CreateHeader(this.binlogFileName, logHeader, nil, nil, nil)
-		entry := CreateEntry(header, protocol.EntryType_TRANSACTIONEND, value)
-		fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
-	}
-
+	// } else {
+	// 	header := CreateHeader(this.binlogFileName, logHeader, nil, nil, nil)
+	// 	entry := CreateEntry(header, protocol.EntryType_TRANSACTIONEND, value)
+	// 	fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
+	// }
+	fmt.Printf("结束事务:%s\n", end)
 }
 
 func (this *MysqlConnection) ReadRotateEvent(logbuf *LogBuffer) {
@@ -620,7 +646,7 @@ func (this *MysqlConnection) fetchValue(logbuf *LogBuffer, columnType byte, meta
 		}
 	case MYSQL_TYPE_DECIMAL:
 		{
-			this.logger.Debug("MYSQL_TYPE_DECIMAL : This enumeration value is only used internally and cannot exist in a binlog!")
+			seelog.Debug("MYSQL_TYPE_DECIMAL : This enumeration value is only used internally and cannot exist in a binlog!")
 			javaType = DECIMAL
 			value, typeLen = nil, 0
 		}
@@ -860,7 +886,7 @@ func (this *MysqlConnection) fetchValue(logbuf *LogBuffer, columnType byte, meta
 		}
 	case MYSQL_TYPE_NEWDATE:
 		{
-			this.logger.Debug("MYSQL_TYPE_NEWDATE : This enumeration value is only used internally and cannot exist in a binlog!")
+			seelog.Debug("MYSQL_TYPE_NEWDATE : This enumeration value is only used internally and cannot exist in a binlog!")
 			javaType = DATE
 			value = nil
 			typeLen = 0
@@ -936,15 +962,15 @@ func (this *MysqlConnection) fetchValue(logbuf *LogBuffer, columnType byte, meta
 		}
 	case MYSQL_TYPE_TINY_BLOB:
 		{
-			this.logger.Debug("MYSQL_TYPE_TINY_BLOB : This enumeration value is only used internally and cannot exist in a binlog!")
+			seelog.Debug("MYSQL_TYPE_TINY_BLOB : This enumeration value is only used internally and cannot exist in a binlog!")
 		}
 	case MYSQL_TYPE_MEDIUM_BLOB:
 		{
-			this.logger.Debug("MYSQL_TYPE_MEDIUM_BLOB : This enumeration value is only used internally and cannot exist in a binlog!")
+			seelog.Debug("MYSQL_TYPE_MEDIUM_BLOB : This enumeration value is only used internally and cannot exist in a binlog!")
 		}
 	case MYSQL_TYPE_LONG_BLOB:
 		{
-			this.logger.Debug("MYSQL_TYPE_LONG_BLOB : This enumeration value is only used internally and cannot exist in a binlog!")
+			seelog.Debug("MYSQL_TYPE_LONG_BLOB : This enumeration value is only used internally and cannot exist in a binlog!")
 		}
 	case MYSQL_TYPE_BLOB:
 		{
@@ -1073,13 +1099,13 @@ func (this *MysqlConnection) fetchValue(logbuf *LogBuffer, columnType byte, meta
 			bina := make([]byte, 0, length)
 			bina = append(bina, logbuf.GetVarLenBytes(length)...)
 			/* Warning unsupport cloumn type */
-			this.logger.Debug("!! Unsupport column type MYSQL_TYPE_GEOMETRY: meta=%d, len = %d", meta, length)
+			seelog.Debug("!! Unsupport column type MYSQL_TYPE_GEOMETRY: meta=%d, len = %d", meta, length)
 			javaType = BINARY
 			value = bina
 			typeLen = length + meta
 		}
 	default:
-		this.logger.Debug("!! Don't know how to handle column type=%d meta=%d", javaType, meta)
+		seelog.Debug("!! Don't know how to handle column type=%d meta=%d", javaType, meta)
 		javaType = OTHER
 		value = nil
 		typeLen = 0
@@ -1147,7 +1173,7 @@ func (this *MysqlConnection) ReadRow(tableMapEvent *TableMapLogEvent, isAfter bo
 					column.SetValue("")
 				default:
 					column.SetValue("")
-					this.logger.Debug("unhandle type")
+					seelog.Debug("unhandle type")
 				}
 			}
 		case BIT:

@@ -7,13 +7,11 @@ import (
 	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/lifecycle"
-	"github.com/siddontang/go-log/log"
 )
 
 type EventParser struct {
 	runningMgr     *lifecycle.AbstractLifeCycle
 	instCfg        *config.InstanceConfig
-	logger         *log.Logger
 	connector      *client.MysqlConnection
 	tableMetaCache *client.TableMetaCache
 	destination    string
@@ -21,14 +19,11 @@ type EventParser struct {
 	masterPort     uint16
 }
 
-func NewEventParser(
-	instCfg *config.InstanceConfig,
-	logger *log.Logger) *EventParser {
+func NewEventParser(instCfg *config.InstanceConfig) *EventParser {
 
 	this := new(EventParser)
 	this.runningMgr = lifecycle.NewAbstractLifeCycle()
 	this.instCfg = instCfg
-	this.logger = logger
 	return this
 }
 
@@ -54,8 +49,7 @@ func (this *EventParser) Start() error {
 		this.instCfg.DbPassword,
 		this.instCfg.DefaultDbName,
 		this.masterPort,
-		this.slaveId,
-		this.logger)
+		this.slaveId)
 
 	return this.Run()
 }
@@ -100,8 +94,7 @@ func (this *EventParser) PreDump() error {
 		this.instCfg.DbPassword,
 		this.instCfg.DefaultDbName,
 		this.masterPort,
-		this.slaveId,
-		this.logger)
+		this.slaveId)
 
 	if err := metaConnector.Connect(); nil != err {
 		return err

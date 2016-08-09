@@ -1,0 +1,29 @@
+<seelog>
+    <outputs formatid="readable">
+        <buffered size="10000" flushperiod="1000">
+            <rollingfile type="date" filename="./binlog_parser.log" datepattern="2006.01.02" maxrolls="30"/>
+        </buffered>
+        <filter levels="trace,info">
+            <console formatid="readable"/>
+        </filter>
+        <filter levels="debug">
+            <console formatid="attention_color"/>
+        </filter>
+        <filter levels="warn">
+            <console formatid="warn_color"/>
+        </filter>
+        <filter levels="error">
+            <console formatid="err_color"/>
+        </filter>
+        <filter levels="critical">
+            <console formatid="critical_color"/>
+        </filter>
+    </outputs>
+    <formats>
+        <format id="readable" format="%Date(2006-01-02 15:04:05) %LEV  %Msg [%FuncShort@%File:%Line]%n"/>
+        <format id="attention_color" format="%EscM(34)%EscM(42)%Date(2006-01-02 15:04:05) %LEV  %Msg [%FuncShort@%File:%Line]%n%EscM(0)"/>
+        <format id="warn_color" format="%EscM(30)%EscM(43)%Date(2006-01-02 15:04:05) %LEV  %Msg [%FuncShort@%File:%Line]%n%EscM(0)"/>
+        <format id="err_color" format="%EscM(41)%Date(2006-01-02 15:04:05) %LEV  %Msg [%FuncShort@%File:%Line]%n%EscM(0)"/>
+        <format id="critical_color" format="%EscM(45)%Date(2006-01-02 15:04:05) %LEV  %Msg [%FuncShort@%File:%Line]%n%EscM(0)"/>
+    </formats>
+</seelog>

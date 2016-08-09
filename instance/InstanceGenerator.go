@@ -35,7 +35,7 @@ func (this *InstanceGenerator) Generate(destination string) *Instance {
 	if !ok {
 		return nil
 	} else {
-		return NewInstance(v, this.cfg.InstanceLogPath, this.cfg.LogLevel)
+		return NewInstance(v)
 	}
 
 }

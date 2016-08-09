@@ -2,15 +2,12 @@ package instance
 
 import (
 	"fmt"
-	"os"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/lifecycle"
 	"github.com/SDHM/sqlregret/parser"
-	"github.com/siddontang/go-log/log"
 )
 
 type Instance struct {
@@ -18,45 +15,16 @@ type Instance struct {
 	instCfg        *config.InstanceConfig
 	Destination    string
 	EventParser    *parser.EventParser
-	logger         *log.Logger
 	lock           *sync.Mutex
 }
 
-func setLogLevel(logger *log.Logger, level string) {
-	switch strings.ToLower(level) {
-	case "trace":
-		logger.SetLevel(log.LevelTrace)
-	case "debug":
-		logger.SetLevel(log.LevelDebug)
-	case "info":
-		logger.SetLevel(log.LevelInfo)
-	case "warn":
-		logger.SetLevel(log.LevelWarn)
-	case "error":
-		logger.SetLevel(log.LevelError)
-	case "fatal":
-		logger.SetLevel(log.LevelFatal)
-	default:
-		logger.SetLevel(log.LevelInfo)
-	}
-}
-
-func NewInstance(instCfg *config.InstanceConfig, logpath string, loglevel string) *Instance {
+func NewInstance(instCfg *config.InstanceConfig) *Instance {
 
 	this := new(Instance)
 	this.runningManager = lifecycle.NewAbstractLifeCycle()
 	this.Destination = instCfg.Destination
 	this.instCfg = instCfg
-
-	os.Mkdir(logpath, 0777)
-	if h, err := log.NewRotatingFileHandler(logpath+"/"+this.Destination+".log", 1024*1024*10, 3); nil != err {
-		this.logger = nil
-	} else {
-		this.logger = log.NewDefault(h)
-		setLogLevel(this.logger, loglevel)
-	}
-
-	this.EventParser = parser.NewEventParser(this.instCfg, this.logger)
+	this.EventParser = parser.NewEventParser(this.instCfg)
 	this.lock = &sync.Mutex{}
 	return this
 }

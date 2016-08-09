@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/siddontang/go-yaml/yaml"
 	"io/ioutil"
+
+	"github.com/siddontang/go-yaml/yaml"
 )
 
 type InstanceConfig struct {
@@ -18,9 +19,6 @@ type InstanceConfig struct {
 }
 
 type Config struct {
-	InstanceLogPath string           `yaml:"instanceLogPath"`
-	ServerLogPath   string           `yaml:"serverLogPath"`
-	LogLevel        string           `yaml:"loglevel"`
 	InstancesConfig []InstanceConfig `yaml:"instances"`
 }
 

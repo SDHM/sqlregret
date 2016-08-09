@@ -1,9 +1,6 @@
 package client
 
-import (
-	"fmt"
-	. "github.com/SDHM/sqlregret/mysql"
-)
+import . "github.com/SDHM/sqlregret/mysql"
 
 type Column struct {
 	ColumnType byte
@@ -85,7 +82,10 @@ func (this *TableMapLogEvent) decodeFields(logbuf *LogBuffer, fieldSize uint64) 
 			}
 		case MYSQL_TYPE_SET, MYSQL_TYPE_ENUM:
 			{
-				fmt.Printf("This enumeration value is only used internally and cannot exist in a binlog: type=%d\n", int(info.ColumnType))
+				x := logbuf.GetUInt8() << 8
+				x += logbuf.GetUInt8()
+				info.ColumnMeta = x
+				// fmt.Printf("This enumeration value is only used internally and cannot exist in a binlog: type=%d\n", int(info.ColumnType))
 			}
 		case MYSQL_TYPE_STRING, MYSQL_TYPE_NEWDECIMAL:
 			{

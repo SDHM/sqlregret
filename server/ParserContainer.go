@@ -4,21 +4,18 @@ import (
 	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/instance"
 	"github.com/SDHM/sqlregret/lifecycle"
-	"github.com/siddontang/go-log/log"
 )
 
 type ParserContainer struct {
 	runningMgr        *lifecycle.AbstractLifeCycle
 	cfg               *config.Config
-	logger            *log.Logger
 	instances         map[string]*instance.Instance
 	instanceGenerator *instance.InstanceGenerator
 }
 
-func NewParserContainer(cfg *config.Config, logger *log.Logger) *ParserContainer {
+func NewParserContainer(cfg *config.Config) *ParserContainer {
 	this := new(ParserContainer)
 	this.cfg = cfg
-	this.logger = logger
 	this.runningMgr = lifecycle.NewAbstractLifeCycle()
 	this.instances = make(map[string]*instance.Instance, len(cfg.InstancesConfig))
 	this.instanceGenerator = instance.NewInstanceGenerator(cfg)

@@ -4,13 +4,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"runtime"
+
 	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/server"
-	"runtime"
+	"github.com/cihub/seelog"
 )
 
-var configFile *string = flag.String("config", "./tsg.conf", "tsg config file")
-var logLevel *string = flag.String("log-level", "info", "log level [trace|debug|info|warn|error|fatal], default info")
+var (
+	configFile *string = flag.String("config", "./tsg.conf", "tsg config file")
+	logcfgFile         = flag.String("logcfg", "./seelog.xml", "log config file")
+)
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -27,6 +31,13 @@ func main() {
 		return
 	}
 
+	// 初始化log
+	defer seelog.Flush()
+	if err := initLogger(*logcfgFile); err != nil {
+		seelog.Debug("initLogger failed, log config path:", *logcfgFile, " err:", err)
+		return
+	}
+	seelog.Debug("hello")
 	svr := server.NewServerController(cfg)
 
 	if nil == svr {
@@ -41,4 +52,13 @@ func main() {
 	}
 
 	svr.Start()
+}
+
+func initLogger(cfgPath string) error {
+	logger, err := seelog.LoggerFromConfigAsFile(cfgPath)
+	if err != nil {
+		return err
+	}
+	seelog.ReplaceLogger(logger)
+	return nil
 }

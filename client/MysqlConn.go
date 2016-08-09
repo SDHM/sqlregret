@@ -5,13 +5,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
 	"time"
 
 	. "github.com/SDHM/sqlregret/mysql"
-	"github.com/siddontang/go-log/log"
+	"github.com/cihub/seelog"
 )
 
 var (
@@ -55,8 +56,7 @@ type MysqlConnection struct {
 func NewMysqlConnection(
 	masterAddr, user, password, dbName string,
 	port uint16,
-	slaveId uint32,
-	logger *log.Logger) *MysqlConnection {
+	slaveId uint32) *MysqlConnection {
 	this := new(MysqlConnection)
 	this.addr = masterAddr + ":" + strconv.Itoa(int(port))
 	this.self_user = user
@@ -70,7 +70,6 @@ func NewMysqlConnection(
 	//use utf8
 	this.collation = DEFAULT_COLLATION_ID
 	this.charset = DEFAULT_CHARSET
-	this.logger = logger
 
 	return this
 }
@@ -91,7 +90,7 @@ func (this *MysqlConnection) ReConnect() error {
 	fmt.Println("begin connect server !")
 	netConn, err := net.Dial(n, this.addr)
 	if err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return err
 	}
 	fmt.Println("Connect server succeed!")
@@ -100,19 +99,19 @@ func (this *MysqlConnection) ReConnect() error {
 
 	if err := this.readInitialHandshake(); err != nil {
 		this.conn.Close()
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return err
 	}
 
 	if err := this.writeAuthHandshake(); err != nil {
 		this.conn.Close()
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return err
 	}
 
 	if _, err := this.readOK(); err != nil {
 		this.conn.Close()
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return err
 	}
 
@@ -120,7 +119,7 @@ func (this *MysqlConnection) ReConnect() error {
 	if !this.IsAutoCommit() {
 		if _, err := this.exec("set autocommit = 1"); err != nil {
 			this.conn.Close()
-			this.logger.Error(err.Error())
+			seelog.Error(err.Error())
 			return err
 		}
 	}
@@ -154,17 +153,17 @@ func (this *MysqlConnection) writePacket(data []byte) error {
 func (this *MysqlConnection) readInitialHandshake() error {
 	data, err := this.readPacket()
 	if err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return err
 	}
 
 	if data[0] == ERR_HEADER {
-		this.logger.Error("read initial handshake error")
+		seelog.Error("read initial handshake error")
 		return errors.New("read initial handshake error")
 	}
 
 	if data[0] < MinProtocolVersion {
-		this.logger.Error("invalid protocol version %d, must >= 10", data[0])
+		seelog.Error("invalid protocol version %d, must >= 10", data[0])
 		return errors.New("invalid protocol version must >= 10")
 	}
 
@@ -440,20 +439,20 @@ func (this *MysqlConnection) SetCharset(charset string) error {
 
 func (this *MysqlConnection) FieldList(table string, wildcard string) ([]*Field, error) {
 	if err := this.writeCommandStrStr(COM_FIELD_LIST, table, wildcard); err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return nil, err
 	}
 
 	data, err := this.readPacket()
 	if err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return nil, err
 	}
 
 	fs := make([]*Field, 0, 4)
 	var f *Field
 	if data[0] == ERR_HEADER {
-		this.logger.Error("error header: % #x", data)
+		seelog.Error("error header: % #x", data)
 		return nil, this.handleErrorPacket(data)
 	} else {
 		for {
@@ -467,7 +466,7 @@ func (this *MysqlConnection) FieldList(table string, wildcard string) ([]*Field,
 			}
 
 			if f, err = FieldData(data).Parse(); err != nil {
-				this.logger.Error(err.Error())
+				seelog.Error(err.Error())
 				return nil, err
 			}
 			fs = append(fs, f)
@@ -478,7 +477,7 @@ func (this *MysqlConnection) FieldList(table string, wildcard string) ([]*Field,
 
 func (this *MysqlConnection) exec(query string) (*Result, error) {
 	if err := this.writeCommandStr(COM_QUERY, query); err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return nil, err
 	}
 
@@ -498,7 +497,7 @@ func (this *MysqlConnection) readResultset(data []byte, binary bool) (*Result, e
 	count, _, n := LengthEncodedInt(data)
 
 	if n-len(data) != 0 {
-		this.logger.Error(ErrMalformPacket.Error())
+		seelog.Error(ErrMalformPacket.Error())
 		return nil, ErrMalformPacket
 	}
 
@@ -506,12 +505,12 @@ func (this *MysqlConnection) readResultset(data []byte, binary bool) (*Result, e
 	result.FieldNames = make(map[string]int, count)
 
 	if err := this.readResultColumns(result); err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return nil, err
 	}
 
 	if err := this.readResultRows(result, binary); err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return nil, err
 	}
 
@@ -525,7 +524,7 @@ func (this *MysqlConnection) readResultColumns(result *Result) (err error) {
 	for {
 		data, err = this.readPacket()
 		if err != nil {
-			this.logger.Error(err.Error())
+			seelog.Error(err.Error())
 			return
 		}
 
@@ -539,7 +538,7 @@ func (this *MysqlConnection) readResultColumns(result *Result) (err error) {
 			}
 
 			if i != len(result.Fields) {
-				this.logger.Error(ErrMalformPacket.Error())
+				seelog.Error(ErrMalformPacket.Error())
 				err = ErrMalformPacket
 			}
 
@@ -548,7 +547,7 @@ func (this *MysqlConnection) readResultColumns(result *Result) (err error) {
 
 		result.Fields[i], err = FieldData(data).Parse()
 		if err != nil {
-			this.logger.Error(err.Error())
+			seelog.Error(err.Error())
 			return
 		}
 
@@ -565,7 +564,7 @@ func (this *MysqlConnection) readResultRows(result *Result, isBinary bool) (err 
 		data, err = this.readPacket()
 
 		if err != nil {
-			this.logger.Error(err.Error())
+			seelog.Error(err.Error())
 			return
 		}
 
@@ -592,7 +591,7 @@ func (this *MysqlConnection) readResultRows(result *Result, isBinary bool) (err 
 		result.Values[i], err = result.RowDatas[i].Parse(result.Fields, isBinary)
 
 		if err != nil {
-			this.logger.Error(err.Error())
+			seelog.Error(err.Error())
 			return err
 		}
 	}
@@ -607,7 +606,7 @@ func (this *MysqlConnection) readUntilEOF() (err error) {
 		data, err = this.readPacket()
 
 		if err != nil {
-			this.logger.Error(err.Error())
+			seelog.Error(err.Error())
 			return
 		}
 
@@ -675,7 +674,7 @@ func (this *MysqlConnection) handleErrorPacket(data []byte) error {
 func (this *MysqlConnection) readOK() (*Result, error) {
 	data, err := this.readPacket()
 	if err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return nil, err
 	}
 
@@ -691,7 +690,7 @@ func (this *MysqlConnection) readOK() (*Result, error) {
 func (this *MysqlConnection) readResult(binary bool) (*Result, error) {
 	data, err := this.readPacket()
 	if err != nil {
-		this.logger.Error(err.Error())
+		seelog.Error(err.Error())
 		return nil, err
 	}
 
