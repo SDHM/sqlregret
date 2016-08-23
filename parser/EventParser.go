@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
@@ -31,17 +30,9 @@ func (this *EventParser) Start() error {
 
 	this.runningMgr.Start()
 
-	if port, err := strconv.Atoi(this.instCfg.MasterPort); nil != err {
-		return err
-	} else {
-		this.masterPort = uint16(port)
-	}
+	this.masterPort = uint16(this.instCfg.MasterPort)
 
-	if slaveId, err := strconv.Atoi(this.instCfg.SlaveId); nil != err {
-		return err
-	} else {
-		this.slaveId = uint32(slaveId)
-	}
+	this.slaveId = uint32(this.instCfg.SlaveId)
 
 	this.connector = client.NewMysqlConnection(
 		this.instCfg.MasterAddress,
@@ -63,18 +54,21 @@ func (this *EventParser) Stop() {
 }
 
 func (this *EventParser) Run() error {
-	if err := this.connector.Connect(); nil != err {
-		fmt.Println(err.Error())
-		return err
-	}
 
-	if err := this.connector.Register(); nil != err {
-		fmt.Println(err.Error())
-		return err
-	}
+	if this.instCfg.Mode == "online" {
+		if err := this.connector.Connect(); nil != err {
+			fmt.Println(err.Error())
+			return err
+		}
 
-	if err := this.PreDump(); nil != err {
-		return err
+		if err := this.connector.Register(); nil != err {
+			fmt.Println(err.Error())
+			return err
+		}
+
+		if err := this.PreDump(); nil != err {
+			return err
+		}
 	}
 
 	if err := this.Dump(); nil != err {
@@ -107,17 +101,14 @@ func (this *EventParser) PreDump() error {
 
 func (this *EventParser) Dump() error {
 
-	logPos, err := strconv.Atoi(this.instCfg.MasterPosition)
-	if nil != err {
-		return err
-	}
-
-	if err := this.connector.Dump(uint32(logPos), this.instCfg.MasterJournalName); nil != err {
+	if err := this.connector.Dump(uint32(this.instCfg.MasterPosition),
+		this.instCfg.MasterJournalName); nil != err {
 		return err
 	}
 
 	return nil
 }
+
 func (this *EventParser) AfterDump() {
 	this.tableMetaCache = nil
 }

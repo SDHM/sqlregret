@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	configFile *string = flag.String("config", "./tsg.conf", "tsg config file")
+	configFile *string = flag.String("config", "./sqlregret.conf", "sqlregret config file")
 	logcfgFile         = flag.String("logcfg", "./seelog.xml", "log config file")
 )
 
@@ -37,7 +37,7 @@ func main() {
 		seelog.Debug("initLogger failed, log config path:", *logcfgFile, " err:", err)
 		return
 	}
-	seelog.Debug("hello")
+
 	svr := server.NewServerController(cfg)
 
 	if nil == svr {

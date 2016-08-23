@@ -3,28 +3,29 @@ package config
 import (
 	"io/ioutil"
 
-	"github.com/siddontang/go-yaml/yaml"
+	"encoding/json"
 )
 
 type InstanceConfig struct {
-	Destination       string `yaml:"destination"`
-	SlaveId           string `yaml:"slaveId"`
-	MasterAddress     string `yaml:"masterAddress"`
-	MasterPort        string `yaml:"masterPort"`
-	MasterJournalName string `yaml:"masterJournalName"`
-	MasterPosition    string `yaml:"masterPosition"`
-	DbUsername        string `yaml:"dbUsername"`
-	DbPassword        string `yaml:"dbPassword"`
-	DefaultDbName     string `yaml:"defaultDbName"`
+	Mode              string `json:"mode"` // online:实时同步 onfile:读取文件
+	Destination       string `json:"destination"`
+	SlaveId           int    `json:"slaveId"`
+	MasterAddress     string `json:"masterAddress"`
+	MasterPort        int    `json:"masterPort"`
+	MasterJournalName string `json:"masterJournalName"`
+	MasterPosition    int    `json:"masterPosition"`
+	DbUsername        string `json:"dbUsername"`
+	DbPassword        string `json:"dbPassword"`
+	DefaultDbName     string `json:"defaultDbName"`
 }
 
 type Config struct {
-	InstancesConfig []InstanceConfig `yaml:"instances"`
+	InstancesConfig []InstanceConfig `json:"instances"`
 }
 
 func ParseConfigData(data []byte) (*Config, error) {
 	var cfg Config
-	if err := yaml.Unmarshal([]byte(data), &cfg); err != nil {
+	if err := json.Unmarshal([]byte(data), &cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil

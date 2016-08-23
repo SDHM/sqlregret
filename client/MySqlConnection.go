@@ -122,20 +122,22 @@ func (this *MysqlConnection) Register() error {
 	return nil
 }
 
-func (this *MysqlConnection) Dump(position uint32, filename string) error {
+func (this *MysqlConnection) Dump(mode string, position uint32, filename string) error {
 	this.pkg.Sequence = 0
 
-	data := make([]byte, 4, 11+len(filename))
+	if mode == "online" {
+		data := make([]byte, 4, 11+len(filename))
 
-	data = append(data, COM_BINLOG_DUMP)
-	data = append(data, Uint32ToBytes(position)...)
-	data = append(data, Uint16ToBytes(uint16(0))...)
-	data = append(data, Uint32ToBytes(this.self_slaveId)...)
-	data = append(data, []byte(filename)...)
+		data = append(data, COM_BINLOG_DUMP)
+		data = append(data, Uint32ToBytes(position)...)
+		data = append(data, Uint16ToBytes(uint16(0))...)
+		data = append(data, Uint32ToBytes(this.self_slaveId)...)
+		data = append(data, []byte(filename)...)
 
-	if err := this.writePacket(data); err != nil {
-		seelog.Error(err.Error())
-		return err
+		if err := this.writePacket(data); err != nil {
+			seelog.Error(err.Error())
+			return err
+		}
 	}
 
 	this.binlogFileName = filename
@@ -324,6 +326,12 @@ func (this *MysqlConnection) ReadRowEvent(logHeader *LogHeader, event_type int, 
 	columns := tableMapEvent.ColumnInfo
 	eventType := getEventType(event_type)
 
+	if !strings.EqualFold(tableMapEvent.TblName, "yongle_activity") &&
+		!strings.EqualFold(tableMapEvent.TblName, "yongle_event") &&
+		!strings.EqualFold(tableMapEvent.TblName, "yongle_tickets") {
+		return
+	}
+
 	rows := this.ReadRows(logHeader, tableMapEvent, eventType, columns, logbuf)
 
 	row_change := new(protocol.RowChange)
@@ -335,23 +343,15 @@ func (this *MysqlConnection) ReadRowEvent(logHeader *LogHeader, event_type int, 
 	if value, err := proto.Marshal(row_change); nil != err {
 		fmt.Println("Marshal failed!", err.Error())
 	} else {
-		header := CreateHeader(this.binlogFileName, logHeader, &tableMapEvent.DbName, &tableMapEvent.TblName, &eventType)
-		entry := CreateEntry(header, protocol.EntryType_ROWDATA, value)
-		fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
+		// header := CreateHeader(this.binlogFileName, logHeader, &tableMapEvent.DbName, &tableMapEvent.TblName, &eventType)
+		// entry := CreateEntry(header, protocol.EntryType_ROWDATA, value)
+		fmt.Sprintf("%s", value[0:1])
 	}
 }
 
 func (this *MysqlConnection) ReadXidEvent(logHeader *LogHeader, logbuf *LogBuffer) {
 	xid := int64(logbuf.GetUInt64())
 	end := CreateTransactionEnd(xid)
-
-	// if value, err := proto.Marshal(end); nil != err {
-
-	// } else {
-	// 	header := CreateHeader(this.binlogFileName, logHeader, nil, nil, nil)
-	// 	entry := CreateEntry(header, protocol.EntryType_TRANSACTIONEND, value)
-	// 	fmt.Sprintf("%s", entry.GetHeader().GetLogfileName())
-	// }
 	fmt.Printf("结束事务:%s\n", end)
 }
 
