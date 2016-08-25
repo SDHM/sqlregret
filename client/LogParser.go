@@ -12,7 +12,6 @@ import (
 	"github.com/SDHM/sqlregret/protocol"
 	"github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
-	"github.com/siddontang/go-log/log"
 )
 
 type LogParser struct {
@@ -22,8 +21,6 @@ type LogParser struct {
 }
 
 func (this *LogParser) Parse(by []byte) {
-	// this.binlogFileName = filename
-	this.context = NewLogContext()
 
 	fmt.Println("len:", len(by))
 	header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
@@ -39,12 +36,10 @@ func (this *LogParser) Parse(by []byte) {
 		}
 	case XID_EVENT:
 		{
-			fmt.Println("TRANSACTION COMMIT!")
 			this.ReadXidEvent(header, NewLogBuffer(by[20:]))
 		}
 	case TABLE_MAP_EVENT:
 		{
-			log.Debug("TABLE_MAP_EVENT")
 			this.ReadTableMapEvent(NewLogBuffer(by[20:]))
 		}
 	case WRITE_ROWS_EVENTv1, WRITE_ROWS_EVENTv2:
@@ -82,6 +77,7 @@ func (this *LogParser) Parse(by []byte) {
 		}
 	case FORMAT_DESCRIPTION_EVENT:
 		{
+			fmt.Println("FORMAT_DESCRIPTION_EVENT:", by[20:])
 			this.ReadFormatDescriptionEvent(NewLogBuffer(by[20:]))
 		}
 	case GTID_EVENT:

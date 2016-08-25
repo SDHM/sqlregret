@@ -41,7 +41,8 @@ func NewNetBinlogReaser(
 	//use utf8
 	this.collation = DEFAULT_COLLATION_ID
 	this.charset = DEFAULT_CHARSET
-
+	this.context = NewLogContext()
+	this.binlogFileName = ""
 	return this
 }
 
@@ -70,9 +71,8 @@ type NetBinlogReader struct {
 	charset   string
 	salt      []byte
 
-	lastPing       int64
-	binlogFileName string
-	pkgErr         error
+	lastPing int64
+	pkgErr   error
 }
 
 func (this *NetBinlogReader) Connect() error {
