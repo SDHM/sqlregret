@@ -187,7 +187,7 @@ func (this *NetBinlogReader) Dump(position uint32, filename string) error {
 		seelog.Error(err.Error())
 		return err
 	}
-
+	this.binlogFileName = filename
 	this.ParseBinlog()
 
 	return nil

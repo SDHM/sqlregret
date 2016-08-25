@@ -230,6 +230,7 @@ func (this *LogParser) ReadXidEvent(logHeader *LogHeader, logbuf *LogBuffer) {
 func (this *LogParser) ReadRotateEvent(logbuf *LogBuffer) {
 	rotateEvent := ParseRotateLogEvent(logbuf, this.context.GetFormatDescription())
 	position := NewBinlogPosition(rotateEvent.GetFileName(), rotateEvent.GetPosition())
+	this.binlogFileName = position.GetFileName()
 	this.context.SetLogPosition(position)
 }
 
