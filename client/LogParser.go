@@ -77,7 +77,6 @@ func (this *LogParser) Parse(by []byte) {
 		}
 	case FORMAT_DESCRIPTION_EVENT:
 		{
-			fmt.Println("FORMAT_DESCRIPTION_EVENT:", by[20:])
 			this.ReadFormatDescriptionEvent(NewLogBuffer(by[20:]))
 		}
 	case GTID_EVENT:
