@@ -3,6 +3,8 @@ package config
 import (
 	"io/ioutil"
 
+	"github.com/cihub/seelog"
+
 	"encoding/json"
 )
 
@@ -28,6 +30,8 @@ func ParseConfigData(data []byte) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &cfg); err != nil {
 		return nil, err
 	}
+
+	seelog.Debug(cfg.InstancesConfig[0].Mode)
 	return &cfg, nil
 }
 

@@ -25,6 +25,7 @@ func NewInstanceGenerator(cfg *config.Config) *InstanceGenerator {
 			DbUsername:        cfg.InstancesConfig[index].DbUsername,
 			DbPassword:        cfg.InstancesConfig[index].DbPassword,
 			DefaultDbName:     cfg.InstancesConfig[index].DefaultDbName,
+			Mode:              cfg.InstancesConfig[index].Mode,
 		}
 	}
 	return this

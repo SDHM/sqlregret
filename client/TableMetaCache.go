@@ -5,13 +5,13 @@ import (
 )
 
 type TableMetaCache struct {
-	connection        *MysqlConnection
+	reader            IBinlogReader
 	tableMetaCacheMap map[string]*TableMeta
 }
 
-func NewTableMetaCache(conn *MysqlConnection) *TableMetaCache {
+func NewTableMetaCache(reader IBinlogReader) *TableMetaCache {
 	this := new(TableMetaCache)
-	this.connection = conn
+	this.reader = reader
 	this.tableMetaCacheMap = make(map[string]*TableMeta, 10)
 	return this
 }
@@ -19,7 +19,7 @@ func NewTableMetaCache(conn *MysqlConnection) *TableMetaCache {
 func (this *TableMetaCache) getTableMeta(fullName string, flush bool) *TableMeta {
 
 	if flush {
-		if rst, err := this.connection.Query("desc " + fullName); nil != err {
+		if rst, err := this.reader.Query("desc " + fullName); nil != err {
 			return nil
 		} else {
 			this.tableMetaCacheMap[fullName] = this.parserTableMeta(rst, fullName)
@@ -29,7 +29,7 @@ func (this *TableMetaCache) getTableMeta(fullName string, flush bool) *TableMeta
 
 	v, ok := this.tableMetaCacheMap[fullName]
 	if !ok {
-		if rst, err := this.connection.Query("desc " + fullName); nil != err {
+		if rst, err := this.reader.Query("desc " + fullName); nil != err {
 			return nil
 		} else {
 			this.tableMetaCacheMap[fullName] = this.parserTableMeta(rst, fullName)
