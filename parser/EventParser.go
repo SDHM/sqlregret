@@ -55,20 +55,18 @@ func (this *EventParser) Stop() {
 
 func (this *EventParser) Run() error {
 
-	if this.instCfg.Mode == "online" {
-		if err := this.connector.Connect(); nil != err {
-			fmt.Println(err.Error())
-			return err
-		}
+	if err := this.connector.Connect(); nil != err {
+		fmt.Println(err.Error())
+		return err
+	}
 
-		if err := this.connector.Register(); nil != err {
-			fmt.Println(err.Error())
-			return err
-		}
+	if err := this.connector.Register(); nil != err {
+		fmt.Println(err.Error())
+		return err
+	}
 
-		if err := this.PreDump(); nil != err {
-			return err
-		}
+	if err := this.PreDump(); nil != err {
+		return err
 	}
 
 	if err := this.Dump(); nil != err {

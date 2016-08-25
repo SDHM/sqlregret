@@ -122,22 +122,20 @@ func (this *MysqlConnection) Register() error {
 	return nil
 }
 
-func (this *MysqlConnection) Dump(mode string, position uint32, filename string) error {
+func (this *MysqlConnection) Dump(position uint32, filename string) error {
 	this.pkg.Sequence = 0
 
-	if mode == "online" {
-		data := make([]byte, 4, 11+len(filename))
+	data := make([]byte, 4, 11+len(filename))
 
-		data = append(data, COM_BINLOG_DUMP)
-		data = append(data, Uint32ToBytes(position)...)
-		data = append(data, Uint16ToBytes(uint16(0))...)
-		data = append(data, Uint32ToBytes(this.self_slaveId)...)
-		data = append(data, []byte(filename)...)
+	data = append(data, COM_BINLOG_DUMP)
+	data = append(data, Uint32ToBytes(position)...)
+	data = append(data, Uint16ToBytes(uint16(0))...)
+	data = append(data, Uint32ToBytes(this.self_slaveId)...)
+	data = append(data, []byte(filename)...)
 
-		if err := this.writePacket(data); err != nil {
-			seelog.Error(err.Error())
-			return err
-		}
+	if err := this.writePacket(data); err != nil {
+		seelog.Error(err.Error())
+		return err
 	}
 
 	this.binlogFileName = filename
