@@ -12,7 +12,7 @@ import (
 
 type EventParser struct {
 	runningMgr     *lifecycle.AbstractLifeCycle
-	instCfg        *config.InstanceConfig
+	instCfg        *config.Config
 	reader         client.IBinlogReader
 	tableMetaCache *client.TableMetaCache
 	destination    string
@@ -20,7 +20,7 @@ type EventParser struct {
 	masterPort     uint16
 }
 
-func NewEventParser(instCfg *config.InstanceConfig) *EventParser {
+func NewEventParser(instCfg *config.Config) *EventParser {
 
 	this := new(EventParser)
 	this.runningMgr = lifecycle.NewAbstractLifeCycle()
@@ -36,7 +36,6 @@ func (this *EventParser) Start() error {
 
 	this.slaveId = uint32(this.instCfg.SlaveId)
 
-	fmt.Println("cfg:", this.instCfg)
 	if this.instCfg.Mode == "online" {
 		this.reader = client.NewNetBinlogReaser(
 			this.instCfg.MasterAddress,
@@ -84,7 +83,7 @@ func (this *EventParser) Run() error {
 	}
 
 	for {
-		
+
 	}
 
 	this.AfterDump()

@@ -12,13 +12,13 @@ import (
 
 type Instance struct {
 	runningManager *lifecycle.AbstractLifeCycle
-	instCfg        *config.InstanceConfig
+	instCfg        *config.Config
 	Destination    string
 	EventParser    *parser.EventParser
 	lock           *sync.Mutex
 }
 
-func NewInstance(instCfg *config.InstanceConfig) *Instance {
+func NewInstance(instCfg *config.Config) *Instance {
 
 	this := new(Instance)
 	this.runningManager = lifecycle.NewAbstractLifeCycle()

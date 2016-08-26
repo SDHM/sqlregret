@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net"
 )
 
 type PacketIO struct {
@@ -14,12 +13,11 @@ type PacketIO struct {
 	Sequence uint8
 }
 
-func NewPacketIO(conn net.Conn) *PacketIO {
+func NewPacketIO(rd io.Reader, wb io.Writer) *PacketIO {
 	p := new(PacketIO)
 
-	p.rb = bufio.NewReaderSize(conn, 1024)
-	p.wb = conn
-
+	p.rb = bufio.NewReaderSize(rd, 1024)
+	p.wb = wb
 	p.Sequence = 0
 
 	return p

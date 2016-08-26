@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 )
 
-type InstanceConfig struct {
+type Config struct {
 	Mode              string `json:"mode"` // online:实时同步 onfile:读取文件
 	Destination       string `json:"destination"`
 	SlaveId           int    `json:"slaveId"`
@@ -21,17 +21,13 @@ type InstanceConfig struct {
 	DefaultDbName     string `json:"defaultDbName"`
 }
 
-type Config struct {
-	InstancesConfig []InstanceConfig `json:"instances"`
-}
-
 func ParseConfigData(data []byte) (*Config, error) {
 	var cfg Config
 	if err := json.Unmarshal([]byte(data), &cfg); err != nil {
 		return nil, err
 	}
 
-	seelog.Debug(cfg.InstancesConfig[0].Mode)
+	seelog.Debug("运行模式:", cfg.Mode)
 	return &cfg, nil
 }
 

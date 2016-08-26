@@ -48,31 +48,24 @@ func NewNetBinlogReaser(
 
 type NetBinlogReader struct {
 	LogParser
-	conn net.Conn
-
-	pkg *PacketIO
-
-	addr     string
-	user     string
-	password string
-	db       string
-
+	conn          net.Conn
+	pkg           *PacketIO
+	addr          string
+	user          string
+	password      string
+	db            string
 	self_name     string
 	self_user     string
 	self_password string
 	self_port     uint16
 	self_slaveId  uint32
-
-	capability uint32
-
-	status uint16
-
-	collation CollationId
-	charset   string
-	salt      []byte
-
-	lastPing int64
-	pkgErr   error
+	capability    uint32
+	status        uint16
+	collation     CollationId
+	charset       string
+	salt          []byte
+	lastPing      int64
+	pkgErr        error
 }
 
 func (this *NetBinlogReader) Connect() error {
@@ -96,7 +89,7 @@ func (this *NetBinlogReader) ReConnect() error {
 	}
 	fmt.Println("Connect server succeed!")
 	this.conn = netConn
-	this.pkg = NewPacketIO(netConn)
+	this.pkg = NewPacketIO(netConn, netConn)
 
 	if err := this.readInitialHandshake(); err != nil {
 		this.conn.Close()
