@@ -14,6 +14,9 @@ type IBinlogReader interface {
 	//注册为从库
 	Register() error
 
+	// //Dump之前要做的操作
+	// PreDump() error
+
 	//Dump日志
 	Dump(position uint32, filename string) error
 

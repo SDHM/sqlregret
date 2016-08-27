@@ -1,7 +1,8 @@
 package client
 
 import (
-	. "github.com/SDHM/sqlregret/mysql"
+	. "github.com/SDHM/sqlregret/binlogevent"
+	"github.com/SDHM/sqlregret/mysql"
 )
 
 type QueryLogEvent struct {
@@ -12,7 +13,7 @@ type QueryLogEvent struct {
 	dbName    string
 }
 
-func ParseQueryLogEvent(logbuf *LogBuffer,
+func ParseQueryLogEvent(logbuf *mysql.LogBuffer,
 	descriptionEvent *FormatDescriptionLogEvent) *QueryLogEvent {
 
 	this := new(QueryLogEvent)

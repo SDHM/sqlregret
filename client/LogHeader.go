@@ -19,7 +19,7 @@ func ParseLogHeader(logBuf *mysql.LogBuffer, descriptionEvent *FormatDescription
 	this.serverId = int64(logBuf.GetUInt32())
 	this.eventLen = int64(logBuf.GetInt32())
 
-	if descriptionEvent.BinlogVersion > 1 {
+	if descriptionEvent.GetBinlogVer() > 1 {
 		this.logPos = int64(logBuf.GetUInt32())
 		//flags
 		logBuf.SkipLen(2)

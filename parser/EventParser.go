@@ -78,12 +78,9 @@ func (this *EventParser) Run() error {
 		return err
 	}
 
-	if err := this.Dump(); nil != err {
-		return nil
-	}
-
-	for {
-
+	if err := this.reader.Dump(uint32(this.instCfg.MasterPosition),
+		this.instCfg.MasterJournalName); nil != err {
+		return err
 	}
 
 	this.AfterDump()
@@ -107,16 +104,6 @@ func (this *EventParser) PreDump() error {
 
 	this.tableMetaCache = client.NewTableMetaCache(metaConnector)
 	this.reader.SetTableMetaCache(this.tableMetaCache)
-	return nil
-}
-
-func (this *EventParser) Dump() error {
-
-	if err := this.reader.Dump(uint32(this.instCfg.MasterPosition),
-		this.instCfg.MasterJournalName); nil != err {
-		return err
-	}
-
 	return nil
 }
 

@@ -12,7 +12,7 @@ type RotateLogEvent struct {
 func ParseRotateLogEvent(logbuf *mysql.LogBuffer, descriptionEvent *FormatDescriptionLogEvent) *RotateLogEvent {
 
 	this := new(RotateLogEvent)
-	if descriptionEvent.BinlogVersion > 1 {
+	if descriptionEvent.GetBinlogVer() > 1 {
 		this.position = int64(logbuf.GetUInt64())
 	}
 	this.fileName = logbuf.GetRestString()
