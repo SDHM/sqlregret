@@ -24,7 +24,7 @@ const (
 	pingPeriod = 10
 )
 
-func NewNetBinlogReaser(
+func NewNetBinlogReader(
 	masterAddr, user, password, dbName string,
 	port uint16,
 	slaveId uint32) *NetBinlogReader {
@@ -188,13 +188,30 @@ func (this *NetBinlogReader) Dump(position uint32, filename string) error {
 
 func (this *NetBinlogReader) ParseBinlog() error {
 	for {
-		if by, err := this.readPacket(); err != nil {
+		if by, err := this.ReadPacket(0); err != nil {
 			seelog.Error(err.Error())
 			return err
 		} else {
-			this.Parse(by)
+			header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
+			this.Parse(header, NewLogBuffer(by[20:]))
 		}
 	}
+}
+
+//读取日志头
+func (this *NetBinlogReader) ReadHeader() ([]byte, error) {
+
+	return nil, nil
+}
+
+func (this *NetBinlogReader) ReadPacket(eventLen int64) ([]byte, error) {
+	return this.readPacket()
+}
+
+//切换日志文件
+func (this *NetBinlogReader) SwitchLogFile(fileName string, pos int) error {
+	this.binlogFileName = fileName
+	return nil
 }
 
 func (this *NetBinlogReader) readPacket() ([]byte, error) {

@@ -37,7 +37,7 @@ func (this *EventParser) Start() error {
 	this.slaveId = uint32(this.instCfg.SlaveId)
 
 	if this.instCfg.Mode == "online" {
-		this.reader = client.NewNetBinlogReaser(
+		this.reader = client.NewNetBinlogReader(
 			this.instCfg.MasterAddress,
 			this.instCfg.DbUsername,
 			this.instCfg.DbPassword,
@@ -45,7 +45,7 @@ func (this *EventParser) Start() error {
 			this.masterPort,
 			this.slaveId)
 	} else if this.instCfg.Mode == "onfile" {
-
+		this.reader = client.NewFileBinlogReader(this.instCfg.DefaultDbName)
 	} else {
 		seelog.Errorf("暂时不支持这种类型:%s", this.instCfg.Mode)
 		return errors.New("不支持这种方式")
@@ -90,7 +90,7 @@ func (this *EventParser) Run() error {
 
 func (this *EventParser) PreDump() error {
 
-	metaConnector := client.NewNetBinlogReaser(
+	metaConnector := client.NewNetBinlogReader(
 		this.instCfg.MasterAddress,
 		this.instCfg.DbUsername,
 		this.instCfg.DbPassword,

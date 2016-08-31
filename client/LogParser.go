@@ -21,39 +21,36 @@ type LogParser struct {
 	tableMetaCache *TableMetaCache
 }
 
-func (this *LogParser) Parse(by []byte) {
-
-	fmt.Println("len:", len(by))
-	header := this.ReadEventHeader(mysql.NewLogBuffer(by[1:20]))
+func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer) {
 
 	switch event_type := header.GetEventType(); event_type {
 	case ROTATE_EVENT:
 		{
-			this.ReadRotateEvent(mysql.NewLogBuffer(by[20:]))
+			this.ReadRotateEvent(logBuf)
 		}
 	case QUERY_EVENT:
 		{
-			this.ReadQueryEvent(header, mysql.NewLogBuffer(by[20:]))
+			this.ReadQueryEvent(header, logBuf)
 		}
 	case XID_EVENT:
 		{
-			this.ReadXidEvent(header, mysql.NewLogBuffer(by[20:]))
+			this.ReadXidEvent(header, logBuf)
 		}
 	case TABLE_MAP_EVENT:
 		{
-			this.ReadTableMapEvent(mysql.NewLogBuffer(by[20:]))
+			this.ReadTableMapEvent(logBuf)
 		}
 	case WRITE_ROWS_EVENT_V1, WRITE_ROWS_EVENT:
 		{
-			this.ReadRowEvent(header, event_type, mysql.NewLogBuffer(by[20:]))
+			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case UPDATE_ROWS_EVENT_V1, UPDATE_ROWS_EVENT:
 		{
-			this.ReadRowEvent(header, event_type, mysql.NewLogBuffer(by[20:]))
+			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case DELETE_ROWS_EVENT_V1, DELETE_ROWS_EVENT:
 		{
-			this.ReadRowEvent(header, event_type, mysql.NewLogBuffer(by[20:]))
+			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case ROWS_QUERY_LOG_EVENT:
 		{
@@ -78,7 +75,7 @@ func (this *LogParser) Parse(by []byte) {
 		}
 	case FORMAT_DESCRIPTION_EVENT:
 		{
-			this.ReadFormatDescriptionEvent(mysql.NewLogBuffer(by[20:]))
+			this.ReadFormatDescriptionEvent(logBuf)
 		}
 	case GTID_EVENT:
 		{

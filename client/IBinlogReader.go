@@ -20,6 +20,15 @@ type IBinlogReader interface {
 	//Dump日志
 	Dump(position uint32, filename string) error
 
+	//读取日志头
+	ReadHeader() ([]byte, error)
+
+	//读取数据包
+	ReadPacket(eventLen int64) ([]byte, error)
+
+	//切换日志文件
+	SwitchLogFile(fileName string, pos int) error
+
 	//关闭连接
 	Close() error
 
