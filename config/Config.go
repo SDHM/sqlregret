@@ -12,6 +12,8 @@ type Config struct {
 	Mode              string `json:"mode"` // online:实时同步 onfile:读取文件
 	Destination       string `json:"destination"`
 	SlaveId           int    `json:"slaveId"`
+	BasePath          string `json:"basePath"`
+	IndexFile         string `json:"indexFile"`
 	MasterAddress     string `json:"masterAddress"`
 	MasterPort        int    `json:"masterPort"`
 	MasterJournalName string `json:"masterJournalName"`

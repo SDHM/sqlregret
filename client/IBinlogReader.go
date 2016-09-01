@@ -27,7 +27,7 @@ type IBinlogReader interface {
 	ReadPacket(eventLen int64) ([]byte, error)
 
 	//切换日志文件
-	SwitchLogFile(fileName string, pos int) error
+	SwitchLogFile(fileName string, pos int64) error
 
 	//关闭连接
 	Close() error

@@ -2,7 +2,6 @@ package parser
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
@@ -45,7 +44,10 @@ func (this *EventParser) Start() error {
 			this.masterPort,
 			this.slaveId)
 	} else if this.instCfg.Mode == "onfile" {
-		this.reader = client.NewFileBinlogReader(this.instCfg.DefaultDbName)
+		this.reader = client.NewFileBinlogReader(
+			this.instCfg.DefaultDbName,
+			this.instCfg.IndexFile,
+			this.instCfg.BasePath)
 	} else {
 		seelog.Errorf("暂时不支持这种类型:%s", this.instCfg.Mode)
 		return errors.New("不支持这种方式")
@@ -65,12 +67,10 @@ func (this *EventParser) Stop() {
 func (this *EventParser) Run() error {
 
 	if err := this.reader.Connect(); nil != err {
-		fmt.Println(err.Error())
 		return err
 	}
 
 	if err := this.reader.Register(); nil != err {
-		fmt.Println(err.Error())
 		return err
 	}
 

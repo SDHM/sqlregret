@@ -193,7 +193,7 @@ func (this *NetBinlogReader) ParseBinlog() error {
 			return err
 		} else {
 			header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
-			this.Parse(header, NewLogBuffer(by[20:]))
+			this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
 		}
 	}
 }
@@ -209,7 +209,7 @@ func (this *NetBinlogReader) ReadPacket(eventLen int64) ([]byte, error) {
 }
 
 //切换日志文件
-func (this *NetBinlogReader) SwitchLogFile(fileName string, pos int) error {
+func (this *NetBinlogReader) SwitchLogFile(fileName string, pos int64) error {
 	this.binlogFileName = fileName
 	return nil
 }

@@ -21,12 +21,14 @@ type LogParser struct {
 	tableMetaCache *TableMetaCache
 }
 
-func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer) {
+func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchFile func(string, int64) error) {
 
 	switch event_type := header.GetEventType(); event_type {
 	case ROTATE_EVENT:
 		{
-			this.ReadRotateEvent(logBuf)
+			fmt.Println("ROTATE_EVENT")
+			rotateEvent := this.ReadRotateEvent(logBuf)
+			SwitchFile(rotateEvent.GetFileName(), rotateEvent.GetPosition())
 		}
 	case QUERY_EVENT:
 		{
@@ -42,15 +44,15 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer) {
 		}
 	case WRITE_ROWS_EVENT_V1, WRITE_ROWS_EVENT:
 		{
-			this.ReadRowEvent(header, event_type, logBuf)
+			// this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case UPDATE_ROWS_EVENT_V1, UPDATE_ROWS_EVENT:
 		{
-			this.ReadRowEvent(header, event_type, logBuf)
+			// this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case DELETE_ROWS_EVENT_V1, DELETE_ROWS_EVENT:
 		{
-			this.ReadRowEvent(header, event_type, logBuf)
+			// this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case ROWS_QUERY_LOG_EVENT:
 		{
@@ -62,40 +64,39 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer) {
 		}
 	case INTVAR_EVENT:
 		{
-			fmt.Println("INTVAR_EVENT NOT HANDLE")
+			// fmt.Println("INTVAR_EVENT NOT HANDLE")
 		}
 	case RAND_EVENT:
 		{
-			fmt.Println("RAND_EVENT NOT HANDLE")
+			// fmt.Println("RAND_EVENT NOT HANDLE")
 		}
 	case STOP_EVENT:
 		{
-			fmt.Println("STOP_EVENT HAPPEND!")
-			seelog.Debug("stop\n")
+			// fmt.Println("STOP_EVENT HAPPEND!")
 		}
 	case FORMAT_DESCRIPTION_EVENT:
 		{
-			this.ReadFormatDescriptionEvent(logBuf)
+			// this.ReadFormatDescriptionEvent(logBuf)
 		}
 	case GTID_EVENT:
 		{
-			fmt.Println("GTID_EVENT NOT HANDLE")
+			// fmt.Println("GTID_EVENT NOT HANDLE")
 		}
 	case GTID_LIST_EVENT:
 		{
-			fmt.Println("GTID_LIST_EVENT NOT HANDLE")
+			// fmt.Println("GTID_LIST_EVENT NOT HANDLE")
 		}
 	case ANONYMOUS_GTID_LOG_EVENT:
 		{
-			fmt.Println("ANONYMOUS_GTID_EVENT NOT HANDLE")
+			// fmt.Println("ANONYMOUS_GTID_EVENT NOT HANDLE")
 		}
 	case PREVIOUS_GTIDS_LOG_EVENT:
 		{
-			fmt.Println("PREVIOUS_GTIDS_EVENT NOT HANDLE")
+			// fmt.Println("PREVIOUS_GTIDS_EVENT NOT HANDLE")
 		}
 	case GTID_LOG_EVENT:
 		{
-			fmt.Println("GTID_LOG_EVENT NOT HANDLE")
+			// fmt.Println("GTID_LOG_EVENT NOT HANDLE")
 		}
 	default:
 		fmt.Println("接收到未识别的命令头：", event_type)
@@ -196,12 +197,6 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 	columns := tableMapEvent.ColumnInfo
 	eventType := getEventType(event_type)
 
-	if !strings.EqualFold(tableMapEvent.TblName, "yongle_activity") &&
-		!strings.EqualFold(tableMapEvent.TblName, "yongle_event") &&
-		!strings.EqualFold(tableMapEvent.TblName, "yongle_tickets") {
-		return
-	}
-
 	rows := this.ReadRows(logHeader, tableMapEvent, eventType, columns, logbuf)
 
 	row_change := new(protocol.RowChange)
@@ -224,11 +219,11 @@ func (this *LogParser) ReadXidEvent(logHeader *LogHeader, logbuf *mysql.LogBuffe
 	fmt.Printf("结束事务:%d\n", xid)
 }
 
-func (this *LogParser) ReadRotateEvent(logbuf *mysql.LogBuffer) {
+func (this *LogParser) ReadRotateEvent(logbuf *mysql.LogBuffer) *RotateLogEvent {
 	rotateEvent := ParseRotateLogEvent(logbuf, this.context.GetFormatDescription())
 	position := NewBinlogPosition(rotateEvent.GetFileName(), rotateEvent.GetPosition())
-	this.binlogFileName = position.GetFileName()
 	this.context.SetLogPosition(position)
+	return rotateEvent
 }
 
 func (this *LogParser) ReadRows(
