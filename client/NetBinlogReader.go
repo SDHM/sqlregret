@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SDHM/sqlregret/binlogevent"
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
 )
@@ -133,6 +134,9 @@ func (this *NetBinlogReader) Close() error {
 }
 
 func (this *NetBinlogReader) Register() error {
+
+	this.Execute(`set @master_binlog_checksum= '@@global.binlog_checksum'`)
+
 	this.pkg.Sequence = 0
 
 	data := make([]byte, 4, 18+len(this.self_name)+len(this.self_user)+len(this.self_password))
@@ -193,7 +197,18 @@ func (this *NetBinlogReader) ParseBinlog() error {
 			return err
 		} else {
 			header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
-			this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
+
+			if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
+
+				fmt.Println("begsss")
+				this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
+			} else {
+				if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
+					this.Parse(header, NewLogBuffer(by[20:header.GetEventLen()-4]), this.SwitchLogFile)
+				} else {
+					this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
+				}
+			}
 		}
 	}
 }

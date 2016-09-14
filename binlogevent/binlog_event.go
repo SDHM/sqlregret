@@ -5,10 +5,16 @@ type Enum_Post_Header_len int
 type Log_Event_Type int
 
 const (
-	LOG_EVENT_HEADER_LEN = 19 /* the fixed header length */
-	OLD_HEADER_LEN       = 13 /* the fixed header length in 3.23 */
-	LOG_EVENT_TYPES      = (ENUM_END_EVENT - 1)
-	ST_SERVER_VER_LEN    = 50
+	BINLOG_CHECKSUM_ALG_UNDEF    = 255 //special value to tag undetermined yet checksum
+	BINLOG_CHECKSUM_ALG_CRC32    = 1
+	BINLOG_CHECKSUM_ALG_OFF      = 0  //Events are without checksum though its generator
+	LOG_EVENT_HEADER_LEN         = 19 /* the fixed header length */
+	OLD_HEADER_LEN               = 13 /* the fixed header length in 3.23 */
+	LOG_EVENT_TYPES              = (ENUM_END_EVENT - 1)
+	ST_SERVER_VER_LEN            = 50
+	CHECKSUM_VERSION_PRODUCT     = (5*256+6)*256 + 1 //从5.6.1开始，日志添加了校验
+	CHECKSUM_CRC32_SIGNATURE_LEN = 4
+	BINLOG_CHECKSUM_LEN          = 4
 )
 
 const (

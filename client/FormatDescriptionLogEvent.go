@@ -3,6 +3,8 @@ package client
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	. "github.com/SDHM/sqlregret/binlogevent"
 	"github.com/SDHM/sqlregret/mysql"
@@ -18,13 +20,16 @@ type FormatDescriptionLogEvent struct {
 	numberOfEventTypes int     //
 	createTimesnamp    uint32  // 创建时间
 	PostHeaderLen      []int16 // eventType header length
-	commonHeaderLen    int     // eventHeaderLen
+	checksumAlg        int
+	commonHeaderLen    int // eventHeaderLen
+	versionSum         int //版本值
 }
 
 func ParseFormatDescriptionLogEvent(logBuf *mysql.LogBuffer, descriptionEvent *FormatDescriptionLogEvent) *FormatDescriptionLogEvent {
 	this := new(FormatDescriptionLogEvent)
 	this.binlogVersion = logBuf.GetUInt16()
 	this.serverVersion = logBuf.GetServerVersion()
+	this.parseServerVersion()
 	this.createTimesnamp = logBuf.GetUInt32()
 	this.commonHeaderLen = logBuf.GetUInt8()
 	if this.commonHeaderLen < OLD_HEADER_LEN {
@@ -37,7 +42,19 @@ func ParseFormatDescriptionLogEvent(logBuf *mysql.LogBuffer, descriptionEvent *F
 		this.PostHeaderLen[i] = int16(logBuf.GetUInt8())
 	}
 
+	fmt.Println(this.versionSum, CHECKSUM_VERSION_PRODUCT)
+	if this.versionSum < CHECKSUM_VERSION_PRODUCT {
+		this.checksumAlg = BINLOG_CHECKSUM_ALG_UNDEF
+	} else {
+		logBuf.Position(logBuf.GetLength() - BINLOG_CHECKSUM_LEN - 1)
+		this.checksumAlg = logBuf.GetInt8()
+		fmt.Println("checkou；", this.checksumAlg)
+	}
 	return this
+}
+
+func (this *FormatDescriptionLogEvent) GetChecksumAlg() int {
+	return this.checksumAlg
 }
 
 func NewFormatDesctiptionLogEvent(binlogVersion int) *FormatDescriptionLogEvent {
@@ -109,4 +126,28 @@ func NewFormatDesctiptionLogEvent(binlogVersion int) *FormatDescriptionLogEvent 
 
 func (this *FormatDescriptionLogEvent) GetBinlogVer() int {
 	return this.binlogVersion
+}
+
+func isDigital(r rune) bool {
+	if r >= rune('0') && r <= rune('9') {
+		fmt.Println("true r:", r)
+		return false
+	}
+	fmt.Println("false r:", r)
+	return true
+}
+
+func (this *FormatDescriptionLogEvent) parseServerVersion() {
+	splitVersion := strings.Split(this.serverVersion, ".")
+	index := strings.IndexFunc(splitVersion[2], isDigital)
+
+	major, _ := strconv.Atoi(splitVersion[0])
+	minor, _ := strconv.Atoi(splitVersion[1])
+	build, _ := strconv.Atoi(splitVersion[2][0:index])
+
+	this.versionSum = (major*256+minor)*256 + build
+}
+
+func (this *FormatDescriptionLogEvent) GetVersionSum() int {
+	return this.versionSum
 }

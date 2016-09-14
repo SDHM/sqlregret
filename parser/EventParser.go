@@ -2,6 +2,8 @@ package parser
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
@@ -78,11 +80,14 @@ func (this *EventParser) Run() error {
 		return err
 	}
 
+	beginTime := time.Now()
 	if err := this.reader.Dump(uint32(this.instCfg.MasterPosition),
 		this.instCfg.MasterJournalName); nil != err {
 		return err
 	}
+	endTime := time.Now()
 
+	fmt.Println("总耗时:", endTime.Sub(beginTime).Seconds())
 	this.AfterDump()
 
 	return nil

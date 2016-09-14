@@ -11,7 +11,6 @@ import (
 
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
-	"github.com/siddontang/go-log/log"
 )
 
 var (
@@ -83,7 +82,7 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 	fmt.Println("line:", this.fileArray)
 	//time.Sleep(time.Second * 5)
 	if err := this.changeBinlogFile(position, filename); nil != err {
-		log.Error("打开文件失败:", err.Error())
+		seelog.Error("打开文件失败:", err.Error())
 		return err
 	}
 
@@ -96,7 +95,7 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 			logHeader := this.ReadEventHeader(logBBF)
 
 			if by, err := this.ReadPacket(logHeader.GetEventLen() - 19); nil != err {
-				log.Error("read packet faield!", err.Error())
+				seelog.Error("read packet faield!", err.Error())
 			} else {
 				this.Parse(logHeader, NewLogBuffer(by), this.SwitchLogFile)
 			}
@@ -104,7 +103,7 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 			if this.index+1 < len(this.fileArray) {
 				this.changeBinlogFile(4, this.fileArray[this.index+1])
 			} else {
-				log.Error("到达最后一个文件")
+				seelog.Error("到达最后一个文件")
 				break
 			}
 		}
@@ -136,7 +135,7 @@ func (this *FileBinlogReader) changeBinlogFile(position uint32, filename string)
 	this.reader = f
 	this.index = this.index + 1
 
-	log.Error("切换文件:", filename)
+	seelog.Errorf("切换文件:%s", filename)
 	return nil
 }
 
@@ -154,7 +153,7 @@ func (this *FileBinlogReader) ReadHeader() ([]byte, error) {
 
 func (this *FileBinlogReader) ReadPacket(eventLen int64) ([]byte, error) {
 	if eventLen == 0 {
-		log.Error("read 0 byte not allowed!")
+		seelog.Error("read 0 byte not allowed!")
 		return nil, errors.New("read 0 byte not allowed!")
 	}
 

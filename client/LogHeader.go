@@ -5,11 +5,12 @@ import (
 )
 
 type LogHeader struct {
-	eventType int
-	logPos    int64
-	timeSnamp int64
-	eventLen  int64
-	serverId  int64
+	eventType   int
+	logPos      int64
+	timeSnamp   int64
+	eventLen    int64
+	serverId    int64
+	checksumAlg int
 }
 
 func ParseLogHeader(logBuf *mysql.LogBuffer, descriptionEvent *FormatDescriptionLogEvent) *LogHeader {
@@ -46,4 +47,8 @@ func (this *LogHeader) GetServerId() int64 {
 
 func (this *LogHeader) GetExecuteTime() int64 {
 	return this.timeSnamp
+}
+
+func (this *LogHeader) GetChecksumAlg() int {
+	return this.checksumAlg
 }

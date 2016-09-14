@@ -26,7 +26,6 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 	switch event_type := header.GetEventType(); event_type {
 	case ROTATE_EVENT:
 		{
-			fmt.Println("ROTATE_EVENT")
 			rotateEvent := this.ReadRotateEvent(logBuf)
 			SwitchFile(rotateEvent.GetFileName(), rotateEvent.GetPosition())
 		}
@@ -44,15 +43,15 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case WRITE_ROWS_EVENT_V1, WRITE_ROWS_EVENT:
 		{
-			// this.ReadRowEvent(header, event_type, logBuf)
+			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case UPDATE_ROWS_EVENT_V1, UPDATE_ROWS_EVENT:
 		{
-			// this.ReadRowEvent(header, event_type, logBuf)
+			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case DELETE_ROWS_EVENT_V1, DELETE_ROWS_EVENT:
 		{
-			// this.ReadRowEvent(header, event_type, logBuf)
+			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case ROWS_QUERY_LOG_EVENT:
 		{
@@ -76,7 +75,8 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case FORMAT_DESCRIPTION_EVENT:
 		{
-			// this.ReadFormatDescriptionEvent(logBuf)
+			fmt.Println("FORMAT_DESCRIPTION_EVENT HAPPEND!")
+			this.ReadFormatDescriptionEvent(logBuf)
 		}
 	case GTID_EVENT:
 		{
@@ -131,11 +131,11 @@ func (this *LogParser) ReadQueryEvent(logHeader *LogHeader, logbuf *mysql.LogBuf
 	switch sql := strings.ToLower(queryEvent.GetQuery()); sql {
 	case "begin":
 		{
-			fmt.Println("开始事务:", sql)
+			fmt.Println("begin transaction")
 		}
 	case "commit":
 		{
-			fmt.Println("提交事务:", sql)
+			fmt.Println("commit transaction")
 		}
 	default:
 		{
@@ -150,9 +150,9 @@ func (this *LogParser) ReadQueryEvent(logHeader *LogHeader, logbuf *mysql.LogBuf
 						break
 					}
 				}
-				fmt.Printf("alter语句:\n%s\n", sql)
+				fmt.Printf("alter table:%s\n", sql)
 			} else {
-				fmt.Printf("DDL语句:\n%s\n", sql)
+				fmt.Printf("ddl statement:%s\n", sql)
 			}
 		}
 	}
@@ -216,13 +216,14 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 
 func (this *LogParser) ReadXidEvent(logHeader *LogHeader, logbuf *mysql.LogBuffer) {
 	xid := int64(logbuf.GetUInt64())
-	fmt.Printf("结束事务:%d\n", xid)
+	fmt.Printf("commit transaction:%d\n", xid)
 }
 
 func (this *LogParser) ReadRotateEvent(logbuf *mysql.LogBuffer) *RotateLogEvent {
 	rotateEvent := ParseRotateLogEvent(logbuf, this.context.GetFormatDescription())
 	position := NewBinlogPosition(rotateEvent.GetFileName(), rotateEvent.GetPosition())
 	this.context.SetLogPosition(position)
+	fmt.Println(rotateEvent.GetFileName(), rotateEvent.GetPosition(), logbuf.GetRestBytes())
 	return rotateEvent
 }
 

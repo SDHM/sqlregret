@@ -291,6 +291,14 @@ func (this *LogBuffer) SkipLen(length int) {
 	this.pos += length
 }
 
+func (this *LogBuffer) Position(pos int) {
+	this.pos = pos
+}
+
+func (this *LogBuffer) GetLength() int {
+	return this.length
+}
+
 func (this *LogBuffer) GetDecimal(precision, scale int) (string, int) {
 	by := this.buffer[this.pos:]
 	intg := precision - scale

@@ -3,6 +3,7 @@ package client
 type LogContext struct {
 	mapofTable        map[int64]*TableMapLogEvent
 	formatDescription *FormatDescriptionLogEvent
+
 	logPosition       *BinlogPosition
 }
 
