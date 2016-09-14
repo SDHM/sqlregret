@@ -6,22 +6,19 @@ import (
 	"sync"
 
 	"github.com/SDHM/sqlregret/config"
-	"github.com/SDHM/sqlregret/lifecycle"
 	"github.com/SDHM/sqlregret/parser"
 )
 
 type Instance struct {
-	runningManager *lifecycle.AbstractLifeCycle
-	instCfg        *config.InstanceConfig
-	Destination    string
-	EventParser    *parser.EventParser
-	lock           *sync.Mutex
+	instCfg     *config.Config
+	Destination string
+	EventParser *parser.EventParser
+	lock        *sync.Mutex
 }
 
-func NewInstance(instCfg *config.InstanceConfig) *Instance {
+func NewInstance(instCfg *config.Config) *Instance {
 
 	this := new(Instance)
-	this.runningManager = lifecycle.NewAbstractLifeCycle()
 	this.Destination = instCfg.Destination
 	this.instCfg = instCfg
 	this.EventParser = parser.NewEventParser(this.instCfg)
@@ -46,8 +43,6 @@ func (this *Instance) Start() {
 		this.Close()
 	}()
 
-	this.runningManager.Start()
-
 	if !this.EventParser.IsStart() {
 		if err := this.EventParser.Start(); nil != err {
 			panic(err)
@@ -55,16 +50,10 @@ func (this *Instance) Start() {
 	}
 }
 
-func (this *Instance) IsStart() bool {
-	return this.runningManager.IsStart()
-}
 func (this *Instance) Stop() {
-
 	if this.EventParser.IsStart() {
 		this.EventParser.Stop()
 	}
-
-	this.runningManager.Stop()
 }
 
 func (this *Instance) Lock() {

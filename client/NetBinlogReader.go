@@ -5,59 +5,31 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/SDHM/sqlregret/binlogevent"
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
 )
 
-var (
-	pingPeriod = int64(time.Second * 30)
+const (
+	DATETIMEF_INT_OFS int64 = 0x8000000000
+	TIMEF_INT_OFS     int64 = 0x800000
+
+	BINLOG_DUMP_NON_BLOCK           uint16 = 1
+	BINLOG_SEND_ANNOTATE_ROWS_EVENT uint16 = 2
+
+	pingPeriod = 10
 )
 
-//proxy <-> mysql server
-type MysqlConnection struct {
-	conn net.Conn
-
-	pkg *PacketIO
-
-	addr     string
-	user     string
-	password string
-	db       string
-
-	self_name     string
-	self_user     string
-	self_password string
-	self_port     uint16
-	self_slaveId  uint32
-
-	capability uint32
-
-	status uint16
-
-	collation CollationId
-	charset   string
-	salt      []byte
-
-	lastPing int64
-
-	tableMetaCache *TableMetaCache
-	context        *LogContext
-	logger         *log.Logger
-	binlogFileName string
-	pkgErr         error
-}
-
-func NewMysqlConnection(
+func NewNetBinlogReader(
 	masterAddr, user, password, dbName string,
 	port uint16,
-	slaveId uint32) *MysqlConnection {
-	this := new(MysqlConnection)
+	slaveId uint32) *NetBinlogReader {
+	this := new(NetBinlogReader)
 	this.addr = masterAddr + ":" + strconv.Itoa(int(port))
 	this.self_user = user
 	this.user = user
@@ -70,15 +42,38 @@ func NewMysqlConnection(
 	//use utf8
 	this.collation = DEFAULT_COLLATION_ID
 	this.charset = DEFAULT_CHARSET
-
+	this.context = NewLogContext()
+	this.binlogFileName = ""
 	return this
 }
 
-func (this *MysqlConnection) Connect() error {
+type NetBinlogReader struct {
+	LogParser
+	conn          net.Conn
+	pkg           *PacketIO
+	addr          string
+	user          string
+	password      string
+	db            string
+	self_name     string
+	self_user     string
+	self_password string
+	self_port     uint16
+	self_slaveId  uint32
+	capability    uint32
+	status        uint16
+	collation     CollationId
+	charset       string
+	salt          []byte
+	lastPing      int64
+	pkgErr        error
+}
+
+func (this *NetBinlogReader) Connect() error {
 	return this.ReConnect()
 }
 
-func (this *MysqlConnection) ReConnect() error {
+func (this *NetBinlogReader) ReConnect() error {
 	if this.conn != nil {
 		this.conn.Close()
 	}
@@ -95,7 +90,7 @@ func (this *MysqlConnection) ReConnect() error {
 	}
 	fmt.Println("Connect server succeed!")
 	this.conn = netConn
-	this.pkg = NewPacketIO(netConn)
+	this.pkg = NewPacketIO(netConn, netConn)
 
 	if err := this.readInitialHandshake(); err != nil {
 		this.conn.Close()
@@ -129,7 +124,7 @@ func (this *MysqlConnection) ReConnect() error {
 	return nil
 }
 
-func (this *MysqlConnection) Close() error {
+func (this *NetBinlogReader) Close() error {
 	if this.conn != nil {
 		this.conn.Close()
 		this.conn = nil
@@ -138,19 +133,115 @@ func (this *MysqlConnection) Close() error {
 	return nil
 }
 
-func (this *MysqlConnection) readPacket() ([]byte, error) {
+func (this *NetBinlogReader) Register() error {
+
+	this.Execute(`set @master_binlog_checksum= '@@global.binlog_checksum'`)
+
+	this.pkg.Sequence = 0
+
+	data := make([]byte, 4, 18+len(this.self_name)+len(this.self_user)+len(this.self_password))
+
+	var master_server_id uint32 = 1
+
+	data = append(data, COM_REGISTER_SLAVE)
+	data = append(data, Uint32ToBytes(this.self_slaveId)...)
+	data = append(data, byte(len(this.self_name)))
+	data = append(data, []byte(this.self_name)...)
+	data = append(data, byte(len(this.self_user)))
+	data = append(data, []byte(this.self_user)...)
+	data = append(data, byte(len(this.self_password)))
+	data = append(data, []byte(this.self_password)...)
+	data = append(data, Uint16ToBytes(this.self_port)...)
+	data = append(data, []byte{0, 0, 0, 0}...)
+	data = append(data, Uint32ToBytes(master_server_id)...)
+
+	if err := this.writePacket(data); err != nil {
+		return err
+	}
+
+	if _, err := this.readPacket(); err != nil {
+		seelog.Error(err.Error())
+		return err
+	} else {
+		//fmt.Println(by)
+	}
+
+	return nil
+}
+
+func (this *NetBinlogReader) Dump(position uint32, filename string) error {
+	this.pkg.Sequence = 0
+
+	data := make([]byte, 4, 11+len(filename))
+
+	data = append(data, COM_BINLOG_DUMP)
+	data = append(data, Uint32ToBytes(position)...)
+	data = append(data, Uint16ToBytes(uint16(0))...)
+	data = append(data, Uint32ToBytes(this.self_slaveId)...)
+	data = append(data, []byte(filename)...)
+
+	if err := this.writePacket(data); err != nil {
+		seelog.Error(err.Error())
+		return err
+	}
+	this.binlogFileName = filename
+	this.ParseBinlog()
+
+	return nil
+}
+
+func (this *NetBinlogReader) ParseBinlog() error {
+	for {
+		if by, err := this.ReadPacket(0); err != nil {
+			seelog.Error(err.Error())
+			return err
+		} else {
+			header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
+
+			if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
+
+				fmt.Println("begsss")
+				this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
+			} else {
+				if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
+					this.Parse(header, NewLogBuffer(by[20:header.GetEventLen()-4]), this.SwitchLogFile)
+				} else {
+					this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
+				}
+			}
+		}
+	}
+}
+
+//读取日志头
+func (this *NetBinlogReader) ReadHeader() ([]byte, error) {
+
+	return nil, nil
+}
+
+func (this *NetBinlogReader) ReadPacket(eventLen int64) ([]byte, error) {
+	return this.readPacket()
+}
+
+//切换日志文件
+func (this *NetBinlogReader) SwitchLogFile(fileName string, pos int64) error {
+	this.binlogFileName = fileName
+	return nil
+}
+
+func (this *NetBinlogReader) readPacket() ([]byte, error) {
 	d, err := this.pkg.ReadPacket()
 	this.pkgErr = err
 	return d, err
 }
 
-func (this *MysqlConnection) writePacket(data []byte) error {
+func (this *NetBinlogReader) writePacket(data []byte) error {
 	err := this.pkg.WritePacket(data)
 	this.pkgErr = err
 	return err
 }
 
-func (this *MysqlConnection) readInitialHandshake() error {
+func (this *NetBinlogReader) readInitialHandshake() error {
 	data, err := this.readPacket()
 	if err != nil {
 		seelog.Error(err.Error())
@@ -208,7 +299,7 @@ func (this *MysqlConnection) readInitialHandshake() error {
 	return nil
 }
 
-func (this *MysqlConnection) writeAuthHandshake() error {
+func (this *NetBinlogReader) writeAuthHandshake() error {
 	// Adjust client capability flags based on server support
 	capability := CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION |
 		CLIENT_LONG_PASSWORD | CLIENT_TRANSACTIONS | CLIENT_LONG_FLAG | CLIENT_MULTI_RESULTS
@@ -278,7 +369,7 @@ func (this *MysqlConnection) writeAuthHandshake() error {
 	return this.writePacket(data)
 }
 
-func (this *MysqlConnection) writeCommand(command byte) error {
+func (this *NetBinlogReader) writeCommand(command byte) error {
 	this.pkg.Sequence = 0
 
 	return this.writePacket([]byte{
@@ -290,7 +381,7 @@ func (this *MysqlConnection) writeCommand(command byte) error {
 	})
 }
 
-func (this *MysqlConnection) writeCommandBuf(command byte, arg []byte) error {
+func (this *NetBinlogReader) writeCommandBuf(command byte, arg []byte) error {
 	this.pkg.Sequence = 0
 
 	length := len(arg) + 1
@@ -304,7 +395,7 @@ func (this *MysqlConnection) writeCommandBuf(command byte, arg []byte) error {
 	return this.writePacket(data)
 }
 
-func (this *MysqlConnection) writeCommandStr(command byte, arg string) error {
+func (this *NetBinlogReader) writeCommandStr(command byte, arg string) error {
 	this.pkg.Sequence = 0
 
 	length := len(arg) + 1
@@ -318,7 +409,7 @@ func (this *MysqlConnection) writeCommandStr(command byte, arg string) error {
 	return this.writePacket(data)
 }
 
-func (this *MysqlConnection) writeCommandUint32(command byte, arg uint32) error {
+func (this *NetBinlogReader) writeCommandUint32(command byte, arg uint32) error {
 	this.pkg.Sequence = 0
 
 	return this.writePacket([]byte{
@@ -336,7 +427,7 @@ func (this *MysqlConnection) writeCommandUint32(command byte, arg uint32) error 
 	})
 }
 
-func (this *MysqlConnection) writeCommandStrStr(command byte, arg1 string, arg2 string) error {
+func (this *NetBinlogReader) writeCommandStrStr(command byte, arg1 string, arg2 string) error {
 	this.pkg.Sequence = 0
 
 	data := make([]byte, 4, 6+len(arg1)+len(arg2))
@@ -349,7 +440,7 @@ func (this *MysqlConnection) writeCommandStrStr(command byte, arg1 string, arg2 
 	return this.writePacket(data)
 }
 
-func (this *MysqlConnection) Ping() error {
+func (this *NetBinlogReader) Ping() error {
 	n := time.Now().Unix()
 
 	if n-this.lastPing > pingPeriod {
@@ -367,7 +458,7 @@ func (this *MysqlConnection) Ping() error {
 	return nil
 }
 
-func (this *MysqlConnection) UseDB(dbName string) error {
+func (this *NetBinlogReader) UseDB(dbName string) error {
 	if this.db == dbName {
 		return nil
 	}
@@ -384,37 +475,37 @@ func (this *MysqlConnection) UseDB(dbName string) error {
 	return nil
 }
 
-func (this *MysqlConnection) GetDB() string {
+func (this *NetBinlogReader) GetDB() string {
 	return this.db
 }
 
-func (this *MysqlConnection) Execute(command string, args ...interface{}) (*Result, error) {
+func (this *NetBinlogReader) Execute(command string, args ...interface{}) (*Result, error) {
 	return this.exec(command)
 }
 
-func (this *MysqlConnection) Begin() error {
+func (this *NetBinlogReader) Begin() error {
 	_, err := this.exec("begin")
 	return err
 }
 
-func (this *MysqlConnection) Commit() error {
+func (this *NetBinlogReader) Commit() error {
 	_, err := this.exec("commit")
 	return err
 }
 
-func (this *MysqlConnection) Rollback() error {
+func (this *NetBinlogReader) Rollback() error {
 	_, err := this.exec("rollback")
 	return err
 }
 
 /*add by chet 2014-12-24 begin*/
-func (this *MysqlConnection) Query(sql string) (*Result, error) {
+func (this *NetBinlogReader) Query(sql string) (*Result, error) {
 	return this.exec(sql)
 }
 
 /*add end*/
 
-func (this *MysqlConnection) SetCharset(charset string) error {
+func (this *NetBinlogReader) SetCharset(charset string) error {
 	charset = strings.Trim(charset, "\"'`")
 	//if c.charset == charset {
 	//	return nil
@@ -437,7 +528,7 @@ func (this *MysqlConnection) SetCharset(charset string) error {
 	}
 }
 
-func (this *MysqlConnection) FieldList(table string, wildcard string) ([]*Field, error) {
+func (this *NetBinlogReader) FieldList(table string, wildcard string) ([]*Field, error) {
 	if err := this.writeCommandStrStr(COM_FIELD_LIST, table, wildcard); err != nil {
 		seelog.Error(err.Error())
 		return nil, err
@@ -475,7 +566,7 @@ func (this *MysqlConnection) FieldList(table string, wildcard string) ([]*Field,
 	return nil, fmt.Errorf("field list error")
 }
 
-func (this *MysqlConnection) exec(query string) (*Result, error) {
+func (this *NetBinlogReader) exec(query string) (*Result, error) {
 	if err := this.writeCommandStr(COM_QUERY, query); err != nil {
 		seelog.Error(err.Error())
 		return nil, err
@@ -484,7 +575,7 @@ func (this *MysqlConnection) exec(query string) (*Result, error) {
 	return this.readResult(false)
 }
 
-func (this *MysqlConnection) readResultset(data []byte, binary bool) (*Result, error) {
+func (this *NetBinlogReader) readResultset(data []byte, binary bool) (*Result, error) {
 	result := &Result{
 		Status:       0,
 		InsertId:     0,
@@ -517,7 +608,7 @@ func (this *MysqlConnection) readResultset(data []byte, binary bool) (*Result, e
 	return result, nil
 }
 
-func (this *MysqlConnection) readResultColumns(result *Result) (err error) {
+func (this *NetBinlogReader) readResultColumns(result *Result) (err error) {
 	var i int = 0
 	var data []byte
 
@@ -557,7 +648,7 @@ func (this *MysqlConnection) readResultColumns(result *Result) (err error) {
 	}
 }
 
-func (this *MysqlConnection) readResultRows(result *Result, isBinary bool) (err error) {
+func (this *NetBinlogReader) readResultRows(result *Result, isBinary bool) (err error) {
 	var data []byte
 
 	for {
@@ -599,7 +690,7 @@ func (this *MysqlConnection) readResultRows(result *Result, isBinary bool) (err 
 	return nil
 }
 
-func (this *MysqlConnection) readUntilEOF() (err error) {
+func (this *NetBinlogReader) readUntilEOF() (err error) {
 	var data []byte
 
 	for {
@@ -618,11 +709,11 @@ func (this *MysqlConnection) readUntilEOF() (err error) {
 	return
 }
 
-func (this *MysqlConnection) isEOFPacket(data []byte) bool {
+func (this *NetBinlogReader) isEOFPacket(data []byte) bool {
 	return data[0] == EOF_HEADER && len(data) <= 5
 }
 
-func (this *MysqlConnection) handleOKPacket(data []byte) (*Result, error) {
+func (this *NetBinlogReader) handleOKPacket(data []byte) (*Result, error) {
 	var n int
 	var pos int = 1
 
@@ -651,7 +742,7 @@ func (this *MysqlConnection) handleOKPacket(data []byte) (*Result, error) {
 	return r, nil
 }
 
-func (this *MysqlConnection) handleErrorPacket(data []byte) error {
+func (this *NetBinlogReader) handleErrorPacket(data []byte) error {
 	e := new(SqlError)
 
 	var pos int = 1
@@ -671,7 +762,7 @@ func (this *MysqlConnection) handleErrorPacket(data []byte) error {
 	return e
 }
 
-func (this *MysqlConnection) readOK() (*Result, error) {
+func (this *NetBinlogReader) readOK() (*Result, error) {
 	data, err := this.readPacket()
 	if err != nil {
 		seelog.Error(err.Error())
@@ -687,7 +778,7 @@ func (this *MysqlConnection) readOK() (*Result, error) {
 	}
 }
 
-func (this *MysqlConnection) readResult(binary bool) (*Result, error) {
+func (this *NetBinlogReader) readResult(binary bool) (*Result, error) {
 	data, err := this.readPacket()
 	if err != nil {
 		seelog.Error(err.Error())
@@ -705,18 +796,18 @@ func (this *MysqlConnection) readResult(binary bool) (*Result, error) {
 	return this.readResultset(data, binary)
 }
 
-func (this *MysqlConnection) IsAutoCommit() bool {
+func (this *NetBinlogReader) IsAutoCommit() bool {
 	return this.status&SERVER_STATUS_AUTOCOMMIT > 0
 }
 
-func (this *MysqlConnection) IsInTransaction() bool {
+func (this *NetBinlogReader) IsInTransaction() bool {
 	return this.status&SERVER_STATUS_IN_TRANS > 0
 }
 
-func (this *MysqlConnection) GetCharset() string {
+func (this *NetBinlogReader) GetCharset() string {
 	return this.charset
 }
 
-func (this *MysqlConnection) SetTableMetaCache(tableMetaCache *TableMetaCache) {
+func (this *NetBinlogReader) SetTableMetaCache(tableMetaCache *TableMetaCache) {
 	this.tableMetaCache = tableMetaCache
 }

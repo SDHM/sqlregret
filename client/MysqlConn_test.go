@@ -45,10 +45,6 @@ func Slave2() {
 	fmt.Println("end dump")
 }
 
-func EntryCallback(entry *protocol.Entry) {
-	fmt.Printf("source entry entryTypeName:%s\n", protocol.EntryType_name[int32(entry.GetEntryType())])
-
-}
 
 func TestMysqlConn(t *testing.T) {
 	//go Slave1()

@@ -3,7 +3,8 @@ package mysql
 import (
 	"fmt"
 	"testing"
-	"tsg/client"
+
+	"github.com/SDHM/sqlregret/client"
 )
 
 func getNameFromIndex(FieldNames map[string]int, index int) string {
@@ -17,9 +18,9 @@ func getNameFromIndex(FieldNames map[string]int, index int) string {
 }
 
 func TestQuery(t *testing.T) {
-	connector := client.NewMysqlConnection("192.168.0.135", "logreader", "123456", "test", 3306, 123)
+	connector := client.NewNetBinlogReaser("127.0.0.1", "reader", "123456", "purchases", 3306, 123)
 	connector.Connect()
-	if rst, err := connector.Query("desc testa"); nil != err {
+	if rst, err := connector.Query("desc yongle_event"); nil != err {
 		return
 	} else {
 		fmt.Println("Field num:", len(rst.Fields))

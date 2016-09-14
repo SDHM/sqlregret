@@ -1,24 +1,27 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/lifecycle"
+	"github.com/cihub/seelog"
 )
 
 type EventParser struct {
 	runningMgr     *lifecycle.AbstractLifeCycle
-	instCfg        *config.InstanceConfig
-	connector      *client.MysqlConnection
+	instCfg        *config.Config
+	reader         client.IBinlogReader
 	tableMetaCache *client.TableMetaCache
 	destination    string
 	slaveId        uint32
 	masterPort     uint16
 }
 
-func NewEventParser(instCfg *config.InstanceConfig) *EventParser {
+func NewEventParser(instCfg *config.Config) *EventParser {
 
 	this := new(EventParser)
 	this.runningMgr = lifecycle.NewAbstractLifeCycle()
@@ -34,13 +37,23 @@ func (this *EventParser) Start() error {
 
 	this.slaveId = uint32(this.instCfg.SlaveId)
 
-	this.connector = client.NewMysqlConnection(
-		this.instCfg.MasterAddress,
-		this.instCfg.DbUsername,
-		this.instCfg.DbPassword,
-		this.instCfg.DefaultDbName,
-		this.masterPort,
-		this.slaveId)
+	if this.instCfg.Mode == "online" {
+		this.reader = client.NewNetBinlogReader(
+			this.instCfg.MasterAddress,
+			this.instCfg.DbUsername,
+			this.instCfg.DbPassword,
+			this.instCfg.DefaultDbName,
+			this.masterPort,
+			this.slaveId)
+	} else if this.instCfg.Mode == "onfile" {
+		this.reader = client.NewFileBinlogReader(
+			this.instCfg.DefaultDbName,
+			this.instCfg.IndexFile,
+			this.instCfg.BasePath)
+	} else {
+		seelog.Errorf("暂时不支持这种类型:%s", this.instCfg.Mode)
+		return errors.New("不支持这种方式")
+	}
 
 	return this.Run()
 }
@@ -55,13 +68,11 @@ func (this *EventParser) Stop() {
 
 func (this *EventParser) Run() error {
 
-	if err := this.connector.Connect(); nil != err {
-		fmt.Println(err.Error())
+	if err := this.reader.Connect(); nil != err {
 		return err
 	}
 
-	if err := this.connector.Register(); nil != err {
-		fmt.Println(err.Error())
+	if err := this.reader.Register(); nil != err {
 		return err
 	}
 
@@ -69,10 +80,14 @@ func (this *EventParser) Run() error {
 		return err
 	}
 
-	if err := this.Dump(); nil != err {
-		return nil
+	beginTime := time.Now()
+	if err := this.reader.Dump(uint32(this.instCfg.MasterPosition),
+		this.instCfg.MasterJournalName); nil != err {
+		return err
 	}
+	endTime := time.Now()
 
+	fmt.Println("总耗时:", endTime.Sub(beginTime).Seconds())
 	this.AfterDump()
 
 	return nil
@@ -80,7 +95,7 @@ func (this *EventParser) Run() error {
 
 func (this *EventParser) PreDump() error {
 
-	metaConnector := client.NewMysqlConnection(
+	metaConnector := client.NewNetBinlogReader(
 		this.instCfg.MasterAddress,
 		this.instCfg.DbUsername,
 		this.instCfg.DbPassword,
@@ -93,17 +108,7 @@ func (this *EventParser) PreDump() error {
 	}
 
 	this.tableMetaCache = client.NewTableMetaCache(metaConnector)
-	this.connector.SetTableMetaCache(this.tableMetaCache)
-	return nil
-}
-
-func (this *EventParser) Dump() error {
-
-	if err := this.connector.Dump(uint32(this.instCfg.MasterPosition),
-		this.instCfg.MasterJournalName); nil != err {
-		return err
-	}
-
+	this.reader.SetTableMetaCache(this.tableMetaCache)
 	return nil
 }
 

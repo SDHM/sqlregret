@@ -7,7 +7,7 @@ import (
 	"runtime"
 
 	"github.com/SDHM/sqlregret/config"
-	"github.com/SDHM/sqlregret/server"
+	"github.com/SDHM/sqlregret/instance"
 	"github.com/cihub/seelog"
 )
 
@@ -38,20 +38,14 @@ func main() {
 		return
 	}
 
-	svr := server.NewServerController(cfg)
+	instance := instance.NewInstance(cfg)
 
-	if nil == svr {
+	if nil == instance {
 		fmt.Println("svr new failed")
 		return
 	}
 
-	err = svr.Init()
-	if nil != err {
-		fmt.Println(err.Error())
-		return
-	}
-
-	svr.Start()
+	instance.Start()
 }
 
 func initLogger(cfgPath string) error {
