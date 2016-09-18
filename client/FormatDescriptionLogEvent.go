@@ -48,7 +48,7 @@ func ParseFormatDescriptionLogEvent(logBuf *mysql.LogBuffer, descriptionEvent *F
 	} else {
 		logBuf.Position(logBuf.GetLength() - BINLOG_CHECKSUM_LEN - 1)
 		this.checksumAlg = logBuf.GetInt8()
-		fmt.Println("checkou；", this.checksumAlg)
+		fmt.Println("checksumAlg:", this.checksumAlg)
 	}
 	return this
 }
@@ -130,10 +130,8 @@ func (this *FormatDescriptionLogEvent) GetBinlogVer() int {
 
 func isDigital(r rune) bool {
 	if r >= rune('0') && r <= rune('9') {
-		fmt.Println("true r:", r)
 		return false
 	}
-	fmt.Println("false r:", r)
 	return true
 }
 

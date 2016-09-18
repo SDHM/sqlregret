@@ -71,7 +71,7 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case STOP_EVENT:
 		{
-			// fmt.Println("STOP_EVENT HAPPEND!")
+			fmt.Println("STOP_EVENT HAPPEND!")
 		}
 	case FORMAT_DESCRIPTION_EVENT:
 		{

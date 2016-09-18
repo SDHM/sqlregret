@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/SDHM/sqlregret/binlogevent"
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
 )
@@ -80,7 +81,8 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 	}
 
 	fmt.Println("line:", this.fileArray)
-	//time.Sleep(time.Second * 5)
+	fmt.Println("index:", this.index)
+
 	if err := this.changeBinlogFile(position, filename); nil != err {
 		seelog.Error("打开文件失败:", err.Error())
 		return err
@@ -92,13 +94,29 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 			if nil == logBBF {
 				fmt.Println("logbuf is nil ")
 			}
-			logHeader := this.ReadEventHeader(logBBF)
+			header := this.ReadEventHeader(logBBF)
 
-			if by, err := this.ReadPacket(logHeader.GetEventLen() - 19); nil != err {
+			if by, err := this.ReadPacket(header.GetEventLen() - binlogevent.LOG_EVENT_HEADER_LEN); nil != err {
 				seelog.Error("read packet faield!", err.Error())
+				// this.SwitchLogFile(this.fileArray[this.index+1], 4)
 			} else {
-				this.Parse(logHeader, NewLogBuffer(by), this.SwitchLogFile)
+				// this.Parse(logHeader, NewLogBuffer(by), this.SwitchLogFile)
+				if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
+					this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)
+				} else {
+					if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
+						fmt.Println("eventLen:", len(by))
+						if header.GetEventLen() > 24 {
+							this.Parse(header, NewLogBuffer(by[:header.GetEventLen()-binlogevent.BINLOG_CHECKSUM_LEN-binlogevent.LOG_EVENT_HEADER_LEN]), this.SwitchLogFile)
+						} else {
+							this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)
+						}
+					} else {
+						this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)
+					}
+				}
 			}
+
 		} else if err == io.EOF {
 			if this.index+1 < len(this.fileArray) {
 				this.changeBinlogFile(4, this.fileArray[this.index+1])
@@ -135,7 +153,7 @@ func (this *FileBinlogReader) changeBinlogFile(position uint32, filename string)
 	this.reader = f
 	this.index = this.index + 1
 
-	seelog.Errorf("切换文件:%s", filename)
+	seelog.Debug("切换文件:%s", filename)
 	return nil
 }
 
@@ -170,6 +188,7 @@ func (this *FileBinlogReader) ReadPacket(eventLen int64) ([]byte, error) {
 }
 
 func (this *FileBinlogReader) SwitchLogFile(fileName string, pos int64) error {
+	fmt.Println("切换文件")
 	this.binlogFileName = fileName
 	return nil
 }
