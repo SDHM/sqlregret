@@ -153,7 +153,7 @@ func (this *FileBinlogReader) changeBinlogFile(position uint32, filename string)
 	this.reader = f
 	this.index = this.index + 1
 
-	seelog.Debug("切换文件:%s", filename)
+	seelog.Debug("切换文件:", filename)
 	return nil
 }
 
@@ -188,7 +188,6 @@ func (this *FileBinlogReader) ReadPacket(eventLen int64) ([]byte, error) {
 }
 
 func (this *FileBinlogReader) SwitchLogFile(fileName string, pos int64) error {
-	fmt.Println("切换文件")
 	this.binlogFileName = fileName
 	return nil
 }
