@@ -80,9 +80,6 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 		}
 	}
 
-	fmt.Println("line:", this.fileArray)
-	fmt.Println("index:", this.index)
-
 	if err := this.changeBinlogFile(position, filename); nil != err {
 		seelog.Error("打开文件失败:", err.Error())
 		return err
@@ -92,7 +89,7 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 		if headBuf, err := this.ReadHeader(); nil == err {
 			logBBF := NewLogBuffer(headBuf)
 			if nil == logBBF {
-				fmt.Println("logbuf is nil ")
+				seelog.Error("日志记录为空")
 			}
 			header := this.ReadEventHeader(logBBF)
 
@@ -100,28 +97,28 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 				seelog.Error("read packet faield!", err.Error())
 				// this.SwitchLogFile(this.fileArray[this.index+1], 4)
 			} else {
-				// this.Parse(logHeader, NewLogBuffer(by), this.SwitchLogFile)
 				if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
 					this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)
 				} else {
 					if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
-						fmt.Println("eventLen:", len(by))
+						// fmt.Println("crc32 eventLen:", header.GetEventLen())
 						if header.GetEventLen() > 24 {
 							this.Parse(header, NewLogBuffer(by[:header.GetEventLen()-binlogevent.BINLOG_CHECKSUM_LEN-binlogevent.LOG_EVENT_HEADER_LEN]), this.SwitchLogFile)
 						} else {
 							this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)
 						}
 					} else {
+						// fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())
 						this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)
 					}
 				}
 			}
 
 		} else if err == io.EOF {
-			if this.index+1 < len(this.fileArray) {
-				this.changeBinlogFile(4, this.fileArray[this.index+1])
+			if this.index+1 <= len(this.fileArray) {
+				this.changeBinlogFile(4, this.fileArray[this.index])
 			} else {
-				seelog.Error("到达最后一个文件")
+				seelog.Debug("到达最后一个文件")
 				break
 			}
 		}

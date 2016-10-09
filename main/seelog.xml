@@ -7,7 +7,7 @@
             <console formatid="readable"/>
         </filter>
         <filter levels="debug">
-            <console formatid="attention_color"/>
+            <console formatid="readable"/>
         </filter>
         <filter levels="warn">
             <console formatid="warn_color"/>

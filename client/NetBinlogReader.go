@@ -202,13 +202,14 @@ func (this *NetBinlogReader) ParseBinlog() error {
 				this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
 			} else {
 				if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
-					fmt.Println("eventLen:", header.GetEventLen())
+					fmt.Println("crc32 eventLen:", header.GetEventLen())
 					if header.GetEventLen() > 24 {
 						this.Parse(header, NewLogBuffer(by[20:header.GetEventLen()-4]), this.SwitchLogFile)
 					} else {
 						fmt.Println("eventType:", header.GetEventType())
 					}
 				} else {
+					fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())
 					this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
 				}
 			}
