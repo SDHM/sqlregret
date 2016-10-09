@@ -4,7 +4,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"runtime"
+	"time"
 
 	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/instance"
@@ -12,18 +14,24 @@ import (
 )
 
 var (
-	configFile *string = flag.String("config", "./sqlregret.conf", "sqlregret config file")
-	logcfgFile         = flag.String("logcfg", "./seelog.xml", "log config file")
+	configFile  *string = flag.String("config", "./sqlregret.conf", "后悔药配置文件")
+	logcfgFile          = flag.String("logcfg", "./seelog.xml", "日志配置文件")
+	help                = flag.String("help", "help", "帮助文档")
+	filterDb            = flag.String("filter-db", "", "过滤的数据库名称")
+	filterTable         = flag.String("filter-table", "", "过滤的数据表名")
+	startFile           = flag.String("start-file", "", "开始日志文件")
+	endFile             = flag.String("end-file", "", "结束日志文件")
+	startPos            = flag.Int("start-pos", 0, "日志解析起点")
+	endPos              = flag.Int("end-pos", 0, "日志解析终点")
+	startTime           = flag.String("start-time", "", "日志解析开始时间点")
+	endTime             = flag.String("end-time", "", "日志解析结束时间点")
 )
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()
-	if len(*configFile) == 0 {
-		fmt.Println("must use a config file")
-		return
-	}
+	ConfigCheck()
 
 	cfg, err := config.ParseConfigFile(*configFile)
 	if err != nil {
@@ -55,4 +63,74 @@ func initLogger(cfgPath string) error {
 	}
 	seelog.ReplaceLogger(logger)
 	return nil
+}
+
+func ConfigCheck() {
+
+	//打印帮助
+	if *help == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if len(*configFile) == 0 {
+		fmt.Println("配置文件不准为空")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	//检查开始时间与结束时间
+	if *startTime != "" && *endTime != "" {
+
+		if t, err := time.ParseInLocation("2006-01-02 15:04:05", *startTime, time.Local); nil != err {
+			fmt.Println("请检查您的开始时间")
+			os.Exit(1)
+		} else {
+			config.G_filterConfig.SetStartTime(t)
+		}
+
+		if t, err := time.ParseInLocation("2006-01-02 15:04:05", *endTime, time.Local); nil != err {
+			fmt.Println("请检查您的结束时间")
+			os.Exit(1)
+		} else {
+			config.G_filterConfig.SetEndTime(t)
+		}
+
+	} else if *startTime == "" && *endTime == "" {
+
+	} else {
+		fmt.Println("开始时间与结束时间必须同时非空")
+		os.Exit(1)
+	}
+
+	//检查过滤的数据库与数据库表名
+	if *filterTable != "" && *filterDb == "" {
+		fmt.Println("请指定要过滤的数据库名称")
+		os.Exit(1)
+	} else {
+		config.G_filterConfig.FilterTable = *filterTable
+		config.G_filterConfig.FilterDb = *filterDb
+	}
+
+	//检查开始时间与开始位置
+	if *startFile != "" && *startPos != 0 {
+		config.G_filterConfig.StartFile = *startFile
+		config.G_filterConfig.StartPos = *startPos
+	} else if *startFile == "" && *startPos == 0 {
+
+	} else {
+		fmt.Println("开始文件与开始位置必须同时设置值")
+		os.Exit(1)
+	}
+
+	//检查结束文件与结束位置
+	if *endFile != "" && *endPos != 0 {
+		config.G_filterConfig.EndFile = *endFile
+		config.G_filterConfig.EndPos = *endPos
+	} else if *endFile == "" && *endPos == 0 {
+
+	} else {
+		fmt.Println("结束文件与结束位置必须同时设置值")
+		os.Exit(1)
+	}
 }

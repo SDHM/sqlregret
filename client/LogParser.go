@@ -9,6 +9,7 @@ import (
 	"time"
 
 	. "github.com/SDHM/sqlregret/binlogevent"
+	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/mysql"
 	"github.com/SDHM/sqlregret/protocol"
 	"github.com/cihub/seelog"
@@ -196,6 +197,21 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 	tableMapEvent := this.context.GetTable(table_id)
 	columns := tableMapEvent.ColumnInfo
 	eventType := getEventType(event_type)
+	dbName := tableMapEvent.DbName
+	tableName := tableMapEvent.TblName
+
+	if config.G_filterConfig.FilterDb != "" {
+		if !strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
+			return
+		}
+	}
+
+	if config.G_filterConfig.FilterTable != "" {
+		if !strings.EqualFold(tableName, config.G_filterConfig.FilterTable) ||
+			!strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
+			return
+		}
+	}
 
 	rows := this.ReadRows(logHeader, tableMapEvent, eventType, columns, logbuf)
 
@@ -223,7 +239,7 @@ func (this *LogParser) ReadRotateEvent(logbuf *mysql.LogBuffer) *RotateLogEvent 
 	rotateEvent := ParseRotateLogEvent(logbuf, this.context.GetFormatDescription())
 	position := NewBinlogPosition(rotateEvent.GetFileName(), rotateEvent.GetPosition())
 	this.context.SetLogPosition(position)
-	seelog.Debug(rotateEvent.GetFileName(), rotateEvent.GetPosition(), logbuf.GetRestBytes())
+	seelog.Debugf("切换文件:%s\t偏移:%d", rotateEvent.GetFileName(), rotateEvent.GetPosition())
 	return rotateEvent
 }
 

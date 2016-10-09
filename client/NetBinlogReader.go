@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/SDHM/sqlregret/binlogevent"
+	"github.com/SDHM/sqlregret/config"
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
 )
@@ -82,13 +83,13 @@ func (this *NetBinlogReader) ReConnect() error {
 	if strings.Contains(this.addr, "/") {
 		n = "unix"
 	}
-	fmt.Println("begin connect server !")
+	seelog.Debug("begin connect server !")
 	netConn, err := net.Dial(n, this.addr)
 	if err != nil {
 		seelog.Error(err.Error())
 		return err
 	}
-	fmt.Println("Connect server succeed!")
+	seelog.Debug("Connect server succeed!")
 	this.conn = netConn
 	this.pkg = NewPacketIO(netConn, netConn)
 
@@ -198,18 +199,34 @@ func (this *NetBinlogReader) ParseBinlog() error {
 		} else {
 			header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
 
+			timeSnap := time.Unix(header.timeSnamp, 0)
+			if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
+				//开始时间和结束时间都设置了
+				if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
+					//时间在两者之间才能解析，否则直接跳过
+				} else {
+					eventType := header.GetEventType()
+					if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
+						eventType == binlogevent.UPDATE_ROWS_EVENT_V1 || eventType == binlogevent.UPDATE_ROWS_EVENT ||
+						eventType == binlogevent.DELETE_ROWS_EVENT_V1 || eventType == binlogevent.DELETE_ROWS_EVENT {
+						continue
+					}
+				}
+			}
+
 			if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
 				this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
 			} else {
 				if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
-					fmt.Println("crc32 eventLen:", header.GetEventLen())
+					// fmt.Println("crc32 eventLen:", header.GetEventLen())
 					if header.GetEventLen() > 24 {
-						this.Parse(header, NewLogBuffer(by[20:header.GetEventLen()-4]), this.SwitchLogFile)
+						endPos := len(by) - 4
+						this.Parse(header, NewLogBuffer(by[20:endPos]), this.SwitchLogFile)
 					} else {
 						fmt.Println("eventType:", header.GetEventType())
 					}
 				} else {
-					fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())
+					// fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())
 					this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
 				}
 			}
