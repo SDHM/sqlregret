@@ -8,8 +8,10 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/SDHM/sqlregret/binlogevent"
+	"github.com/SDHM/sqlregret/config"
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
 )
@@ -93,10 +95,28 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 			}
 			header := this.ReadEventHeader(logBBF)
 
+			//判断截止时间
+
 			if by, err := this.ReadPacket(header.GetEventLen() - binlogevent.LOG_EVENT_HEADER_LEN); nil != err {
 				seelog.Error("read packet faield!", err.Error())
 				// this.SwitchLogFile(this.fileArray[this.index+1], 4)
 			} else {
+				timeSnap := time.Unix(header.timeSnamp, 0)
+				if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
+					//开始时间和结束时间都设置了
+					if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
+						//时间在两者之间才能解析，否则直接跳过
+					} else {
+						eventType := header.GetEventType()
+						if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
+							eventType == binlogevent.UPDATE_ROWS_EVENT_V1 || eventType == binlogevent.UPDATE_ROWS_EVENT ||
+							eventType == binlogevent.DELETE_ROWS_EVENT_V1 || eventType == binlogevent.DELETE_ROWS_EVENT {
+							continue
+						}
+					}
+				}
+
+				//非截止时间
 				if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
 					this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)
 				} else {
