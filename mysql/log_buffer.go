@@ -40,20 +40,21 @@ func (this *LogBuffer) HasMore() bool {
 
 func (this *LogBuffer) GetByte() byte {
 	bytebuf := this.buffer[this.pos]
-	this.pos += 1
+	this.pos++
 	return bytebuf
 }
 
 func (this *LogBuffer) GetInt8() int {
 	buf := this.buffer[this.pos : this.pos+1]
-	this.pos += 1
+	this.pos++
 	return int(buf[0])
 }
 
 func (this *LogBuffer) GetUInt8() int {
-	buf := this.buffer[this.pos : this.pos+1]
-	this.pos += 1
-	return int(0xff & buf[0])
+	// buf := this.buffer[this.pos : this.pos+1]
+	result := int(0xff & this.buffer[this.pos])
+	this.pos++
+	return result
 }
 
 func (this *LogBuffer) GetInt16() int {

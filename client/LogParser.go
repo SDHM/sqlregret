@@ -71,11 +71,11 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case STOP_EVENT:
 		{
-			// fmt.Println("STOP_EVENT HAPPEND!")
+			fmt.Println("STOP_EVENT HAPPEND!")
 		}
 	case FORMAT_DESCRIPTION_EVENT:
 		{
-			fmt.Println("FORMAT_DESCRIPTION_EVENT HAPPEND!")
+			// fmt.Println("FORMAT_DESCRIPTION_EVENT HAPPEND!")
 			this.ReadFormatDescriptionEvent(logBuf)
 		}
 	case GTID_EVENT:
@@ -131,11 +131,11 @@ func (this *LogParser) ReadQueryEvent(logHeader *LogHeader, logbuf *mysql.LogBuf
 	switch sql := strings.ToLower(queryEvent.GetQuery()); sql {
 	case "begin":
 		{
-			fmt.Println("begin transaction")
+			fmt.Println("\n开始事务")
 		}
 	case "commit":
 		{
-			fmt.Println("commit transaction")
+			fmt.Println("提交事务2")
 		}
 	default:
 		{
@@ -150,9 +150,9 @@ func (this *LogParser) ReadQueryEvent(logHeader *LogHeader, logbuf *mysql.LogBuf
 						break
 					}
 				}
-				fmt.Printf("alter table:%s\n", sql)
+				fmt.Printf("修改表结构语句:%s\n", sql)
 			} else {
-				fmt.Printf("ddl statement:%s\n", sql)
+				fmt.Printf("DDL语句:%s\n", sql)
 			}
 		}
 	}
@@ -216,14 +216,14 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 
 func (this *LogParser) ReadXidEvent(logHeader *LogHeader, logbuf *mysql.LogBuffer) {
 	xid := int64(logbuf.GetUInt64())
-	fmt.Printf("commit transaction:%d\n", xid)
+	fmt.Printf("提交事务:%d\n\n", xid)
 }
 
 func (this *LogParser) ReadRotateEvent(logbuf *mysql.LogBuffer) *RotateLogEvent {
 	rotateEvent := ParseRotateLogEvent(logbuf, this.context.GetFormatDescription())
 	position := NewBinlogPosition(rotateEvent.GetFileName(), rotateEvent.GetPosition())
 	this.context.SetLogPosition(position)
-	fmt.Println(rotateEvent.GetFileName(), rotateEvent.GetPosition(), logbuf.GetRestBytes())
+	seelog.Debug(rotateEvent.GetFileName(), rotateEvent.GetPosition(), logbuf.GetRestBytes())
 	return rotateEvent
 }
 
@@ -301,7 +301,7 @@ func (this *LogParser) transformToSqlInsert(logHeader *LogHeader, tableMapEvent 
 	}
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	fmt.Printf("时间戳:%s\t插入语句为:%s\n\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	fmt.Printf("时间戳:%s\t插入语句为:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
 }
 
 func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
@@ -351,7 +351,7 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 		}
 	}
 
-	fmt.Printf("时间戳:%s\t对应的反向插入语句为:%s\n\n", timeSnap.Format("2006-01-02 15:04:05"), regretsql)
+	fmt.Printf("时间戳:%s\t对应的反向插入语句为:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), regretsql)
 
 }
 
@@ -422,7 +422,7 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 	sql += fmt.Sprintf(" where %s=%s", keyName, keyValue)
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	fmt.Printf("时间戳:%s\tupdate 语句:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	fmt.Printf("时间戳:%s\tupdate语句:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
 
 	updateCount2 = 0
 	sqlregret := fmt.Sprintf("update %s.%s set ", tableMapEvent.DbName, tableMapEvent.TblName)
@@ -458,7 +458,7 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 
 	sqlregret += fmt.Sprintf(" where %s=%s", keyName, keyValue)
 
-	fmt.Printf("时间戳:%s\t对应的反向 update 语句:%s\n\n", timeSnap.Format("2006-01-02 15:04:05"), sqlregret)
+	fmt.Printf("时间戳:%s\t对应的反向update语句:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), sqlregret)
 }
 
 func (this *LogParser) fetchValue(logbuf *mysql.LogBuffer, columnType byte, meta int, isBinary bool) (interface{}, JavaType, int) {
@@ -901,11 +901,9 @@ func (this *LogParser) fetchValue(logbuf *mysql.LogBuffer, columnType byte, meta
 			length = meta
 			tmpLen := int(0)
 			if length < 256 {
-				//fmt.Println("length < 256 by[0]", by[pos:pos+1])
 				length = logbuf.GetUInt8()
 				tmpLen = 1
 			} else {
-				//fmt.Println("by[0]", by[pos:pos+1])
 				length = logbuf.GetUInt16()
 				tmpLen = 2
 			}
@@ -1017,14 +1015,12 @@ func (this *LogParser) ReadRow(
 		if IsNull(column_mark, i) {
 			column.SetIsNull(true)
 			pro_columns = append(pro_columns, column)
-			//fmt.Printf("第%d列值为空; ", i)
 			column.SetSqlType(int32(this.mysqlToJavaType(c.ColumnType, c.ColumnMeta, isBinary)))
 			column.SetValue("")
 			column.SetIsNull(true)
-			//fmt.Printf("null index:%d\tcolumn name:%s\n", i, fieldMeta.ColumnName)
+			seelog.Errorf("空列索引:%d\t空列名称:%s\n", i, fieldMeta.ColumnName)
 			continue
 		} else {
-			//fmt.Printf("index:%d\tcolumn name:%s\n", i, fieldMeta.ColumnName)
 			column.SetIsNull(false)
 		}
 
