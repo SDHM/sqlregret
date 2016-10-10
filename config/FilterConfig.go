@@ -18,6 +18,8 @@ type FilterConfig struct {
 	EndPos          int       // 日志解析终点
 	EndTime         time.Time // 日志解析结束时间点
 	endTimeEnable   bool      // 结束时间是否设置了
+	Mode            string    // 运行模式 parse:解析模式  mark:记录时间点模式
+	NeedReverse     bool      // 是否需要反向操作语句
 }
 
 var (

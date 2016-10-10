@@ -18,6 +18,7 @@ import (
 
 var (
 	binlogFileHeader []byte = []byte{0xfe, 0x62, 0x69, 0x6e}
+	lastLogTime             = time.Unix(0, 0)
 )
 
 type FileBinlogReader struct {
@@ -102,15 +103,30 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 				// this.SwitchLogFile(this.fileArray[this.index+1], 4)
 			} else {
 				timeSnap := time.Unix(header.timeSnamp, 0)
+
+				if config.G_filterConfig.Mode == "mark" {
+					this.StoreTimePos(timeSnap, this.binlogFileName, header.GetLogPos())
+				}
+
 				if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
 					//开始时间和结束时间都设置了
 					if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
-						//时间在两者之间才能解析，否则直接跳过
+						//时间在两者之间才能解析
+
 					} else {
+						//时间在两者之外，并且不是修改操作的直接跳过
 						eventType := header.GetEventType()
 						if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
 							eventType == binlogevent.UPDATE_ROWS_EVENT_V1 || eventType == binlogevent.UPDATE_ROWS_EVENT ||
 							eventType == binlogevent.DELETE_ROWS_EVENT_V1 || eventType == binlogevent.DELETE_ROWS_EVENT {
+							continue
+						}
+					}
+				} else {
+					if config.G_filterConfig.Mode == "mark" {
+						eventType := header.GetEventType()
+						if eventType == binlogevent.FORMAT_DESCRIPTION_EVENT {
+						} else {
 							continue
 						}
 					}
@@ -144,6 +160,15 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 		}
 	}
 	return nil
+}
+
+func (this *FileBinlogReader) StoreTimePos(t time.Time, fileName string, pos int64) {
+	//十秒钟一个记录
+	if t.Sub(lastLogTime) >= time.Second*10 {
+		str := fmt.Sprintf("时间:%s\t文件名:%s\t位置:%d", t.Format("2006-01-02 15:04:05"), fileName, pos)
+		fmt.Println(str)
+		lastLogTime = t
+	}
 }
 
 func (this *FileBinlogReader) changeBinlogFile(position uint32, filename string) error {

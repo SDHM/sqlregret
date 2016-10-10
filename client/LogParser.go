@@ -318,6 +318,27 @@ func (this *LogParser) transformToSqlInsert(logHeader *LogHeader, tableMapEvent 
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
 	fmt.Printf("时间戳:%s\t插入语句为:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+
+	if !config.G_filterConfig.NeedReverse {
+		return
+	}
+
+	sql = fmt.Sprintf("delete from %s.%s where ", tableMapEvent.DbName, tableMapEvent.TblName)
+	for _, column := range columns {
+		if column.GetIsKey() {
+			sql += column.GetName() + "="
+
+			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+				sql += `'` + column.GetValue() + "';"
+			} else {
+				sql += column.GetValue() + ";"
+			}
+
+			break
+		}
+	}
+
+	fmt.Printf("时间戳:%s\t反向删除语句为:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
 }
 
 func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
@@ -339,6 +360,10 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
 	fmt.Printf("时间戳:%s\t删除语句为:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+
+	if !config.G_filterConfig.NeedReverse {
+		return
+	}
 
 	regretsql := fmt.Sprintf("insert into %s.%s(", tableMapEvent.DbName, tableMapEvent.TblName)
 	column_len := len(columns)
@@ -439,6 +464,10 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
 	fmt.Printf("时间戳:%s\tupdate语句:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+
+	if !config.G_filterConfig.NeedReverse {
+		return
+	}
 
 	updateCount2 = 0
 	sqlregret := fmt.Sprintf("update %s.%s set ", tableMapEvent.DbName, tableMapEvent.TblName)
