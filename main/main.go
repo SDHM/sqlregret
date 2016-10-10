@@ -25,6 +25,8 @@ var (
 	endPos              = flag.Int("end-pos", 0, "日志解析终点")
 	startTime           = flag.String("start-time", "", "日志解析开始时间点")
 	endTime             = flag.String("end-time", "", "日志解析结束时间点")
+	mode                = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式")
+	needReverse         = flag.Bool("rsv", true, "是否需要反向操作语句")
 )
 
 func main() {
@@ -78,6 +80,9 @@ func ConfigCheck() {
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	config.G_filterConfig.Mode = *mode
+	config.G_filterConfig.NeedReverse = *needReverse
 
 	//检查开始时间与结束时间
 	if *startTime != "" && *endTime != "" {

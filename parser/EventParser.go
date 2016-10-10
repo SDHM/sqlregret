@@ -80,7 +80,6 @@ func (this *EventParser) Run() error {
 		return err
 	}
 
-	fmt.Println("dump:", this.instCfg.MasterPosition)
 	beginTime := time.Now()
 	if err := this.reader.Dump(uint32(this.instCfg.MasterPosition),
 		this.instCfg.MasterJournalName); nil != err {

@@ -42,14 +42,14 @@ func ParseFormatDescriptionLogEvent(logBuf *mysql.LogBuffer, descriptionEvent *F
 		this.PostHeaderLen[i] = int16(logBuf.GetUInt8())
 	}
 
-	fmt.Printf("日志版本格式:%d\t%v\n", this.versionSum, CHECKSUM_VERSION_PRODUCT)
+	// fmt.Printf("日志版本格式:%d\t%v\n", this.versionSum, CHECKSUM_VERSION_PRODUCT)
 
 	if this.versionSum < CHECKSUM_VERSION_PRODUCT {
 		this.checksumAlg = BINLOG_CHECKSUM_ALG_UNDEF
 	} else {
 		logBuf.Position(logBuf.GetLength() - BINLOG_CHECKSUM_LEN - 1)
 		this.checksumAlg = logBuf.GetInt8()
-		fmt.Printf("验证算法:%d\n\n", this.checksumAlg)
+		// fmt.Printf("验证算法:%d\n\n", this.checksumAlg)
 	}
 	return this
 }
