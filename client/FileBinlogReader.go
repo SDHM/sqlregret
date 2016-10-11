@@ -163,6 +163,8 @@ func (this *FileBinlogReader) changeBinlogFile(position uint32, filename string)
 		}
 	}
 
+	this.binlogFileName = filename
+
 	filename = fmt.Sprintf("%s/%s", this.basePath, filename)
 	f, err := os.Open(filename)
 	if nil != err {
