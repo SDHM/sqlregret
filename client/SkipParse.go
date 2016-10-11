@@ -31,6 +31,7 @@ func FilterSkipSQL(eventType int) bool {
 				eventType == binlogevent.UPDATE_ROWS_EVENT ||
 				eventType == binlogevent.DELETE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.DELETE_ROWS_EVENT {
+				g_transaction.SkipSomeThing()
 				return true
 			} else if eventType == binlogevent.WRITE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.WRITE_ROWS_EVENT {
@@ -43,6 +44,7 @@ func FilterSkipSQL(eventType int) bool {
 				eventType == binlogevent.UPDATE_ROWS_EVENT ||
 				eventType == binlogevent.WRITE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.WRITE_ROWS_EVENT {
+				g_transaction.SkipSomeThing()
 				return true
 			} else if eventType == binlogevent.DELETE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.DELETE_ROWS_EVENT {
@@ -55,6 +57,7 @@ func FilterSkipSQL(eventType int) bool {
 				eventType == binlogevent.DELETE_ROWS_EVENT ||
 				eventType == binlogevent.WRITE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.WRITE_ROWS_EVENT {
+				g_transaction.SkipSomeThing()
 				return true
 			} else if eventType == binlogevent.UPDATE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.UPDATE_ROWS_EVENT {
@@ -89,6 +92,7 @@ func FilterTime(timeSnap time.Time, eventType int) bool {
 	if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
 		//开始时间和结束时间都设置了
 		if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
+
 			return false
 		} else {
 			//时间在两者之外，并且不是修改操作的直接跳过
@@ -100,7 +104,13 @@ func FilterTime(timeSnap time.Time, eventType int) bool {
 				return false
 			}
 		}
-	} else {
-		return false
+	} else if config.G_filterConfig.StartTimeEnable() && !config.G_filterConfig.EndTimeEnable() {
+		if timeSnap.After(config.G_filterConfig.StartTime) {
+			return false
+		} else {
+			return true
+		}
 	}
+
+	return false
 }

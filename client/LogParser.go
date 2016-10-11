@@ -132,7 +132,8 @@ func (this *LogParser) ReadQueryEvent(logHeader *LogHeader, logbuf *mysql.LogBuf
 	switch sql := strings.ToLower(queryEvent.GetQuery()); sql {
 	case "begin":
 		{
-			fmt.Println("\n开始事务")
+			//fmt.Println("\n开始事务")
+			g_transaction.Begin()
 		}
 	case "commit":
 		{
@@ -242,7 +243,9 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 
 func (this *LogParser) ReadXidEvent(logHeader *LogHeader, logbuf *mysql.LogBuffer) {
 	xid := int64(logbuf.GetUInt64())
-	fmt.Printf("提交事务:%d\n\n", xid)
+	g_transaction.End(xid)
+	g_transaction.PrintTransaction()
+	// fmt.Printf("提交事务:%d\n\n", xid)
 }
 
 func (this *LogParser) ReadRotateEvent(logbuf *mysql.LogBuffer) *RotateLogEvent {
@@ -327,7 +330,8 @@ func (this *LogParser) transformToSqlInsert(logHeader *LogHeader, tableMapEvent 
 	}
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	fmt.Printf("时间戳:%s\t插入语句为:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	rstSql := fmt.Sprintf("时间戳:%s\t插入语句为:%s;", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	g_transaction.AppendSQL(rstSql)
 
 	if !config.G_filterConfig.NeedReverse {
 		return
@@ -348,7 +352,8 @@ func (this *LogParser) transformToSqlInsert(logHeader *LogHeader, tableMapEvent 
 		}
 	}
 
-	fmt.Printf("时间戳:%s\t反向删除语句为:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	rstSql = fmt.Sprintf("时间戳:%s\t反向删除语句为:%s", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	g_transaction.AppendSQL(rstSql)
 }
 
 func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
@@ -369,7 +374,8 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 	}
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	fmt.Printf("时间戳:%s\t删除语句为:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	rstSql := fmt.Sprintf("时间戳:%s\t删除语句为:%s", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	g_transaction.AppendSQL(rstSql)
 
 	if !config.G_filterConfig.NeedReverse {
 		return
@@ -402,8 +408,8 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 		}
 	}
 
-	fmt.Printf("时间戳:%s\t对应的反向插入语句为:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), regretsql)
-
+	rstSql = fmt.Sprintf("时间戳:%s\t对应的反向插入语句为:%s;", timeSnap.Format("2006-01-02 15:04:05"), regretsql)
+	g_transaction.AppendSQL(rstSql)
 }
 
 func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
@@ -473,8 +479,8 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 	sql += fmt.Sprintf(" where %s=%s", keyName, keyValue)
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	fmt.Printf("时间戳:%s\tupdate语句:%s\n", timeSnap.Format("2006-01-02 15:04:05"), sql)
-
+	rstSql := fmt.Sprintf("时间戳:%s\tupdate语句:%s", timeSnap.Format("2006-01-02 15:04:05"), sql)
+	g_transaction.AppendSQL(rstSql)
 	if !config.G_filterConfig.NeedReverse {
 		return
 	}
@@ -512,8 +518,8 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 	}
 
 	sqlregret += fmt.Sprintf(" where %s=%s", keyName, keyValue)
-
-	fmt.Printf("时间戳:%s\t对应的反向update语句:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), sqlregret)
+	rstSql = fmt.Sprintf("时间戳:%s\t对应的反向update语句:%s;", timeSnap.Format("2006-01-02 15:04:05"), sqlregret)
+	g_transaction.AppendSQL(rstSql)
 }
 
 func (this *LogParser) fetchValue(logbuf *mysql.LogBuffer, columnType byte, meta int, isBinary bool) (interface{}, JavaType, int) {

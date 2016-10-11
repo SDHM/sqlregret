@@ -95,35 +95,37 @@ func ConfigCheck() {
 	config.G_filterConfig.FilterSQL = strings.ToLower(*filterSQL)
 	if config.G_filterConfig.FilterSQL != "update" &&
 		config.G_filterConfig.FilterSQL != "delete" &&
-		config.G_filterConfig.FilterSQL != "insert" {
-		fmt.Println("filter-sql必须为insert、update、delete")
+		config.G_filterConfig.FilterSQL != "insert" &&
+		config.G_filterConfig.FilterSQL != "" {
+		fmt.Println("filter-sql必须为insert、update、delete或者为空")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	config.G_filterConfig.WithDDL = *withDDL
 	//检查开始时间与结束时间
-	if *startTime != "" && *endTime != "" {
 
+	if *startTime == "" && *endTime != "" {
+		fmt.Println("不允许不存在开始时间却有结束时间的情况")
+		os.Exit(1)
+	}
+
+	if *startTime != "" {
 		if t, err := time.ParseInLocation("2006-01-02 15:04:05", *startTime, time.Local); nil != err {
 			fmt.Println("请检查您的开始时间")
 			os.Exit(1)
 		} else {
 			config.G_filterConfig.SetStartTime(t)
 		}
+	}
 
+	if *endTime != "" {
 		if t, err := time.ParseInLocation("2006-01-02 15:04:05", *endTime, time.Local); nil != err {
 			fmt.Println("请检查您的结束时间")
 			os.Exit(1)
 		} else {
 			config.G_filterConfig.SetEndTime(t)
 		}
-
-	} else if *startTime == "" && *endTime == "" {
-
-	} else {
-		fmt.Println("开始时间与结束时间必须同时非空")
-		os.Exit(1)
 	}
 
 	//检查过滤的数据库与数据库表名
