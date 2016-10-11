@@ -29,6 +29,7 @@ var (
 	endTime             = flag.String("end-time", "", "日志解析结束时间点")
 	mode                = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式")
 	needReverse         = flag.Bool("rsv", true, "是否需要反向操作语句")
+	withDDL             = flag.Bool("with-ddl", false, "是否解析ddl语句")
 )
 
 func main() {
@@ -84,9 +85,23 @@ func ConfigCheck() {
 	}
 
 	config.G_filterConfig.Mode = strings.ToLower(*mode)
+	if config.G_filterConfig.Mode != "mark" && config.G_filterConfig.Mode != "parse" {
+		fmt.Println("mode必须为mark或者是parse")
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	config.G_filterConfig.NeedReverse = *needReverse
 	config.G_filterConfig.FilterSQL = strings.ToLower(*filterSQL)
+	if config.G_filterConfig.FilterSQL != "update" &&
+		config.G_filterConfig.FilterSQL != "delete" &&
+		config.G_filterConfig.FilterSQL != "insert" {
+		fmt.Println("filter-sql必须为insert、update、delete")
+		flag.Usage()
+		os.Exit(1)
+	}
 
+	config.G_filterConfig.WithDDL = *withDDL
 	//检查开始时间与结束时间
 	if *startTime != "" && *endTime != "" {
 

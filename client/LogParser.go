@@ -140,21 +140,25 @@ func (this *LogParser) ReadQueryEvent(logHeader *LogHeader, logbuf *mysql.LogBuf
 		}
 	default:
 		{
-			if strings.Contains(sql, "alter table") {
-				s := strings.Split(sql, " ")
-				for index := range s {
-					if s[index] == "table" {
-						if index+1 < len(s) {
-							tableName := s[index+1]
-							this.getTableMeta(queryEvent.GetSchema(), tableName, true)
+			//如果开放DDL解析，则解析DDL,否则不解析
+			if config.G_filterConfig.WithDDL {
+				if strings.Contains(sql, "alter table") {
+					s := strings.Split(sql, " ")
+					for index := range s {
+						if s[index] == "table" {
+							if index+1 < len(s) {
+								tableName := s[index+1]
+								this.getTableMeta(queryEvent.GetSchema(), tableName, true)
+							}
+							break
 						}
-						break
 					}
+					fmt.Printf("修改表结构语句:%s\n", sql)
+				} else {
+					fmt.Printf("DDL语句:%s\n", sql)
 				}
-				fmt.Printf("修改表结构语句:%s\n", sql)
-			} else {
-				fmt.Printf("DDL语句:%s\n", sql)
 			}
+
 		}
 	}
 

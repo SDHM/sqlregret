@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/SDHM/sqlregret/binlogevent"
-	"github.com/SDHM/sqlregret/config"
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
 )
@@ -200,59 +199,42 @@ func (this *NetBinlogReader) ParseBinlog() error {
 			header := this.ReadEventHeader(NewLogBuffer(by[1:20]))
 
 			timeSnap := time.Unix(header.timeSnamp, 0)
-
-			if config.G_filterConfig.Mode == "mark" {
-				this.StoreTimePos(timeSnap, this.binlogFileName, header.GetLogPos())
+			if FilterTime(timeSnap, header.GetEventType()) {
+				continue
 			}
 
-			if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
-				//开始时间和结束时间都设置了
-				if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
-					//时间在两者之间才能解析
-
-				} else {
-					//时间在两者之外，并且不是修改操作的直接跳过
-					eventType := header.GetEventType()
-					if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
-						eventType == binlogevent.UPDATE_ROWS_EVENT_V1 || eventType == binlogevent.UPDATE_ROWS_EVENT ||
-						eventType == binlogevent.DELETE_ROWS_EVENT_V1 || eventType == binlogevent.DELETE_ROWS_EVENT {
-						continue
-					}
-				}
-			} else {
-				if config.G_filterConfig.Mode == "mark" {
-					eventType := header.GetEventType()
-					if eventType == binlogevent.FORMAT_DESCRIPTION_EVENT {
-					} else {
-						continue
-					}
-				}
+			if FilterMode(header.GetEventType()) {
+				this.StoreTimePos(timeSnap, this.binlogFileName, header.GetLogPos())
+				continue
 			}
 
 			if FilterSkipSQL(header.GetEventType()) {
 				continue
 			}
 
-			if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
-				this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
-			} else {
-				if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
-					// fmt.Println("crc32 eventLen:", header.GetEventLen())
-					if header.GetEventLen() > 24 {
-						endPos := len(by) - 4
-						this.Parse(header, NewLogBuffer(by[20:endPos]), this.SwitchLogFile)
-					} else {
-						fmt.Println("eventType:", header.GetEventType())
-					}
-				} else {
-					// fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())
-					this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
-				}
-			}
+			this.ParseLog(header, by[0:])
 		}
 	}
 }
 
+func (this *NetBinlogReader) ParseLog(header *LogHeader, by []byte) {
+	if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
+		this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
+	} else {
+		if this.context.formatDescription.GetChecksumAlg() == binlogevent.BINLOG_CHECKSUM_ALG_CRC32 {
+			// fmt.Println("crc32 eventLen:", header.GetEventLen())
+			if header.GetEventLen() > 24 {
+				endPos := len(by) - 4
+				this.Parse(header, NewLogBuffer(by[20:endPos]), this.SwitchLogFile)
+			} else {
+				fmt.Println("eventType:", header.GetEventType())
+			}
+		} else {
+			// fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())
+			this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
+		}
+	}
+}
 func (this *NetBinlogReader) StoreTimePos(t time.Time, fileName string, pos int64) {
 	//十秒钟一个记录
 	if t.Sub(lastLogTime) >= time.Second*10 {

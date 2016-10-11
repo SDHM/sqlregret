@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/SDHM/sqlregret/binlogevent"
-	"github.com/SDHM/sqlregret/config"
 	. "github.com/SDHM/sqlregret/mysql"
 	"github.com/cihub/seelog"
 )
@@ -104,32 +103,13 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 			} else {
 				timeSnap := time.Unix(header.timeSnamp, 0)
 
-				if config.G_filterConfig.Mode == "mark" {
-					this.StoreTimePos(timeSnap, this.binlogFileName, header.GetLogPos())
+				if FilterTime(timeSnap, header.GetEventType()) {
+					continue
 				}
 
-				if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
-					//开始时间和结束时间都设置了
-					if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
-						//时间在两者之间才能解析
-
-					} else {
-						//时间在两者之外，并且不是修改操作的直接跳过
-						eventType := header.GetEventType()
-						if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
-							eventType == binlogevent.UPDATE_ROWS_EVENT_V1 || eventType == binlogevent.UPDATE_ROWS_EVENT ||
-							eventType == binlogevent.DELETE_ROWS_EVENT_V1 || eventType == binlogevent.DELETE_ROWS_EVENT {
-							continue
-						}
-					}
-				} else {
-					if config.G_filterConfig.Mode == "mark" {
-						eventType := header.GetEventType()
-						if eventType == binlogevent.FORMAT_DESCRIPTION_EVENT {
-						} else {
-							continue
-						}
-					}
+				if FilterMode(header.GetEventType()) {
+					this.StoreTimePos(timeSnap, this.binlogFileName, header.GetLogPos())
+					continue
 				}
 
 				if FilterSkipSQL(header.GetEventType()) {
@@ -199,7 +179,7 @@ func (this *FileBinlogReader) changeBinlogFile(position uint32, filename string)
 	this.reader = f
 	this.index = this.index + 1
 
-	seelog.Debug("切换文件:", filename)
+	// seelog.Debug("切换文件:", filename)
 	return nil
 }
 

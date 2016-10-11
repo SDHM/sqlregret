@@ -21,6 +21,7 @@ type FilterConfig struct {
 	endTimeEnable   bool      // 结束时间是否设置了
 	Mode            string    // 运行模式 parse:解析模式  mark:记录时间点模式
 	NeedReverse     bool      // 是否需要反向操作语句
+	WithDDL         bool      // 是否解析DDL语句 true:解析 false:不解析
 }
 
 var (
