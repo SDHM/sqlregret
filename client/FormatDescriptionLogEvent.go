@@ -150,3 +150,7 @@ func (this *FormatDescriptionLogEvent) parseServerVersion() {
 func (this *FormatDescriptionLogEvent) GetVersionSum() int {
 	return this.versionSum
 }
+
+func (this *FormatDescriptionLogEvent) GetCommonHeaderLen() int {
+	return this.commonHeaderLen
+}

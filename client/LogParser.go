@@ -56,7 +56,7 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case ROWS_QUERY_LOG_EVENT:
 		{
-			fmt.Println("ROWS_QUERY_LOG_EVENT NOT HANDLE")
+			this.ReadRowsQueryEvent(header, event_type, logBuf)
 		}
 	case USER_VAR_EVENT:
 		{
@@ -163,6 +163,12 @@ func (this *LogParser) ReadQueryEvent(logHeader *LogHeader, logbuf *mysql.LogBuf
 func (this *LogParser) ReadTableMapEvent(logbuf *mysql.LogBuffer) {
 	tableMapEvent := ParseTableMapLogEvent(logbuf, this.context.GetFormatDescription())
 	this.context.PutTable(tableMapEvent)
+}
+
+func (this *LogParser) ReadRowsQueryEvent(logHeader *LogHeader, event_type int, logbuf *mysql.LogBuffer) {
+	rowsQueryEvent := ParseRowsQueryEvent(logbuf, this.context.GetFormatDescription())
+	timeSnap := time.Unix(logHeader.timeSnamp, 0)
+	fmt.Printf("时间戳:%s\t原始语句为:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), rowsQueryEvent.GetRowsQueryString())
 }
 
 func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf *mysql.LogBuffer) {
