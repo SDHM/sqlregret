@@ -209,7 +209,6 @@ func (this *NetBinlogReader) ParseBinlog() error {
 			}
 
 			if FilterPos(header.GetEventType(), this.fileIndex, header.GetLogPos()) {
-				fmt.Println("过滤了3")
 				continue
 			}
 
