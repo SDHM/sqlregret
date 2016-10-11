@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -139,8 +140,8 @@ func ConfigCheck() {
 
 	//检查开始时间与开始位置
 	if *startFile != "" && *startPos != 0 {
-		config.G_filterConfig.StartFile = *startFile
-		config.G_filterConfig.StartPos = *startPos
+		fileIndex, _ := strconv.Atoi(strings.Split(*startFile, ".")[1])
+		config.G_filterConfig.SetStartPos(fileIndex, *startPos)
 	} else if *startFile == "" && *startPos == 0 {
 
 	} else {
@@ -150,12 +151,17 @@ func ConfigCheck() {
 
 	//检查结束文件与结束位置
 	if *endFile != "" && *endPos != 0 {
-		config.G_filterConfig.EndFile = *endFile
-		config.G_filterConfig.EndPos = *endPos
+		fileIndex, _ := strconv.Atoi(strings.Split(*endFile, ".")[1])
+		config.G_filterConfig.SetEndPos(fileIndex, *endPos)
 	} else if *endFile == "" && *endPos == 0 {
 
 	} else {
 		fmt.Println("结束文件与结束位置必须同时设置值")
+		os.Exit(1)
+	}
+
+	if !config.G_filterConfig.StartPosEnable() && config.G_filterConfig.EndPosEnable() {
+		fmt.Println("指定了结束文件和位置必须同时指定开始文件和位置")
 		os.Exit(1)
 	}
 }

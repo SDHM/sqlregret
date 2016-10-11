@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -112,6 +113,11 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 					continue
 				}
 
+				if FilterPos(header.GetEventType(), this.fileIndex, header.GetLogPos()) {
+					fmt.Println("过滤了3")
+					continue
+				}
+
 				if FilterSkipSQL(header.GetEventType()) {
 					continue
 				}
@@ -164,6 +170,8 @@ func (this *FileBinlogReader) changeBinlogFile(position uint32, filename string)
 	}
 
 	this.binlogFileName = filename
+	fileIndex, _ := strconv.Atoi(strings.Split(filename, ".")[1])
+	this.fileIndex = fileIndex
 
 	filename = fmt.Sprintf("%s/%s", this.basePath, filename)
 	f, err := os.Open(filename)

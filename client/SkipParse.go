@@ -76,7 +76,8 @@ func FilterSkipSQL(eventType int) bool {
 func FilterMode(eventType int) bool {
 	if config.G_filterConfig.Mode == "mark" {
 		if eventType == binlogevent.FORMAT_DESCRIPTION_EVENT ||
-			eventType == binlogevent.TABLE_MAP_EVENT {
+			eventType == binlogevent.TABLE_MAP_EVENT ||
+			eventType == binlogevent.ROTATE_EVENT {
 			return false
 		} else {
 			return true
@@ -113,4 +114,38 @@ func FilterTime(timeSnap time.Time, eventType int) bool {
 	}
 
 	return false
+}
+
+func FilterPos(eventType int, fileIndex int, pos int64) bool {
+
+	if config.G_filterConfig.StartPosEnable() && config.G_filterConfig.EndPosEnable() {
+		if (fileIndex >= config.G_filterConfig.StartFileIndex && int(pos) >= config.G_filterConfig.StartPos) &&
+			(fileIndex <= config.G_filterConfig.EndFileIndex && int(pos) <= config.G_filterConfig.EndPos) {
+			return false
+		} else {
+			if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
+				eventType == binlogevent.UPDATE_ROWS_EVENT_V1 || eventType == binlogevent.UPDATE_ROWS_EVENT ||
+				eventType == binlogevent.DELETE_ROWS_EVENT_V1 || eventType == binlogevent.DELETE_ROWS_EVENT {
+				return true
+			} else {
+				return false
+			}
+		}
+	} else if config.G_filterConfig.StartPosEnable() && !config.G_filterConfig.EndTimeEnable() {
+		if fileIndex >= config.G_filterConfig.StartFileIndex && int(pos) >= config.G_filterConfig.StartPos {
+			return false
+		} else {
+			if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
+				eventType == binlogevent.UPDATE_ROWS_EVENT_V1 || eventType == binlogevent.UPDATE_ROWS_EVENT ||
+				eventType == binlogevent.DELETE_ROWS_EVENT_V1 || eventType == binlogevent.DELETE_ROWS_EVENT {
+				return true
+			} else {
+				return false
+			}
+		}
+	} else if !config.G_filterConfig.StartPosEnable() && !config.G_filterConfig.EndTimeEnable() {
+		return false
+	}
+
+	return true
 }

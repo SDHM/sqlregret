@@ -208,6 +208,11 @@ func (this *NetBinlogReader) ParseBinlog() error {
 				continue
 			}
 
+			if FilterPos(header.GetEventType(), this.fileIndex, header.GetLogPos()) {
+				fmt.Println("过滤了3")
+				continue
+			}
+
 			if FilterSkipSQL(header.GetEventType()) {
 				continue
 			}
@@ -257,6 +262,8 @@ func (this *NetBinlogReader) ReadPacket(eventLen int64) ([]byte, error) {
 //切换日志文件
 func (this *NetBinlogReader) SwitchLogFile(fileName string, pos int64) error {
 	this.binlogFileName = fileName
+	fileIndex, _ := strconv.Atoi(strings.Split(fileName, ".")[1])
+	this.fileIndex = fileIndex
 	return nil
 }
 

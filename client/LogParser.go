@@ -18,6 +18,7 @@ import (
 
 type LogParser struct {
 	binlogFileName string
+	fileIndex      int
 	context        *LogContext
 	tableMetaCache *TableMetaCache
 }
