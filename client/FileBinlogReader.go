@@ -132,6 +132,10 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 					}
 				}
 
+				if FilterSkipSQL(header.GetEventType()) {
+					continue
+				}
+
 				//非截止时间
 				if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
 					this.Parse(header, NewLogBuffer(by), this.SwitchLogFile)

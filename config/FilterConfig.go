@@ -10,6 +10,7 @@ import (
 type FilterConfig struct {
 	FilterDb        string    // 过滤的数据库名称
 	FilterTable     string    // 过滤的数据表名
+	FilterSQL       string    // 过滤的语句类型(insert, update, delete) 默认为空表示三种都解析
 	StartFile       string    // 开始日志文件
 	StartPos        int       // 日志解析起点
 	StartTime       time.Time // 日志解析开始时间点

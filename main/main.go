@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/SDHM/sqlregret/config"
@@ -19,6 +20,7 @@ var (
 	help                = flag.String("help", "help", "帮助文档")
 	filterDb            = flag.String("filter-db", "", "过滤的数据库名称")
 	filterTable         = flag.String("filter-table", "", "过滤的数据表名")
+	filterSQL           = flag.String("filter-sql", "", "过滤的语句类型(insert, update, delete) 默认为空表示三种都解析")
 	startFile           = flag.String("start-file", "", "开始日志文件")
 	endFile             = flag.String("end-file", "", "结束日志文件")
 	startPos            = flag.Int("start-pos", 0, "日志解析起点")
@@ -81,8 +83,9 @@ func ConfigCheck() {
 		os.Exit(1)
 	}
 
-	config.G_filterConfig.Mode = *mode
+	config.G_filterConfig.Mode = strings.ToLower(*mode)
 	config.G_filterConfig.NeedReverse = *needReverse
+	config.G_filterConfig.FilterSQL = strings.ToLower(*filterSQL)
 
 	//检查开始时间与结束时间
 	if *startTime != "" && *endTime != "" {

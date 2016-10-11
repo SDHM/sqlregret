@@ -229,6 +229,10 @@ func (this *NetBinlogReader) ParseBinlog() error {
 				}
 			}
 
+			if FilterSkipSQL(header.GetEventType()) {
+				continue
+			}
+
 			if header.GetEventType() == FORMAT_DESCRIPTION_EVENT {
 				this.Parse(header, NewLogBuffer(by[20:]), this.SwitchLogFile)
 			} else {

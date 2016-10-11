@@ -30,7 +30,7 @@ const (
 	APPEND_BLOCK_EVENT                       = 9
 	EXEC_LOAD_EVENT                          = 10
 	DELETE_FILE_EVENT                        = 11
-	NEW_LOAD_EVENT                           = 12 //  NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer  sql_ex, allowing multibyte TERMINATED BY etc; both types share the same class (Load_event)
+	NEW_LOAD_EVENT                           = 12 // NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer  sql_ex, allowing multibyte TERMINATED BY etc; both types share the same class (Load_event)
 	RAND_EVENT                               = 13
 	USER_VAR_EVENT                           = 14
 	FORMAT_DESCRIPTION_EVENT                 = 15 // MYSQL根据其定义的来解析其他事件
