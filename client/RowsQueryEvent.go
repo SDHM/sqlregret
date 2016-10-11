@@ -7,9 +7,8 @@ type RowsQueryEvent struct {
 }
 
 func ParseRowsQueryEvent(logbuf *mysql.LogBuffer, descriptionEvent *FormatDescriptionLogEvent) *RowsQueryEvent {
-	commonHeaderLen := descriptionEvent.GetCommonHeaderLen()
 	postHeaderLen := descriptionEvent.PostHeaderLen[mysql.ROWS_QUERY_EVENT-1]
-	logbuf.SkipLen(commonHeaderLen + int(postHeaderLen) + 1)
+	logbuf.SkipLen(int(postHeaderLen) + 1)
 
 	rowsQueryEvent := new(RowsQueryEvent)
 	rowsQueryEvent.queryString = logbuf.GetRestString()
