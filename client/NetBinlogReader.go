@@ -231,7 +231,7 @@ func (this *NetBinlogReader) ParseLog(header *LogHeader, by []byte) {
 				endPos := len(by) - 4
 				this.Parse(header, NewLogBuffer(by[20:endPos]), this.SwitchLogFile)
 			} else {
-				fmt.Println("eventType:", header.GetEventType())
+				// fmt.Println("eventType:", header.GetEventType())
 			}
 		} else {
 			// fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())

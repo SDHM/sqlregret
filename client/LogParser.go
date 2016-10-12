@@ -212,17 +212,25 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 	dbName := tableMapEvent.DbName
 	tableName := tableMapEvent.TblName
 
+	//数据库过滤
 	if config.G_filterConfig.FilterDb != "" {
 		if !strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
 			return
 		}
 	}
 
+	//表过滤
 	if config.G_filterConfig.FilterTable != "" {
 		if !strings.EqualFold(tableName, config.G_filterConfig.FilterTable) ||
 			!strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
 			return
 		}
+	}
+
+	//列过滤
+	tableMeta := this.getTableMeta(tableMapEvent.DbName, tableMapEvent.TblName, false)
+	if FilterColumns(eventType, tableMeta, columns) {
+		return
 	}
 
 	rows := this.ReadRows(logHeader, tableMapEvent, eventType, columns, logbuf)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/SDHM/sqlregret/binlogevent"
 	"github.com/SDHM/sqlregret/config"
+	"github.com/SDHM/sqlregret/protocol"
 )
 
 // 返回为false 表示不过滤 返回为true 表示过滤
@@ -148,4 +149,38 @@ func FilterPos(eventType int, fileIndex int, pos int64) bool {
 	}
 
 	return true
+}
+
+func FilterColumns(eventType protocol.EventType, tableMeta *TableMeta, columns []*Column) bool {
+	if (eventType == protocol.EventType_INSERT && config.G_filterConfig.WithInsertFilterColumn()) ||
+		(eventType == protocol.EventType_UPDATE && config.G_filterConfig.WithUpdateFilterColumn()) {
+
+		findColumn := false
+		var filterColumns []*config.ColumnFilter
+		if eventType == protocol.EventType_INSERT {
+			filterColumns = config.G_filterConfig.InsertFilterColumn
+		}
+
+		if eventType == protocol.EventType_UPDATE {
+			filterColumns = config.G_filterConfig.UpdateFilterColumn
+		}
+
+		for i, _ := range columns {
+			if nil != tableMeta {
+				columnName := tableMeta.Fileds[i].ColumnName
+
+				for _, c := range filterColumns {
+					if c.GetName() == columnName {
+						findColumn = true
+						goto Out1
+					}
+				}
+			}
+		}
+
+	Out1:
+		return !findColumn
+	}
+
+	return false
 }

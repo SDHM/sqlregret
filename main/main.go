@@ -16,21 +16,22 @@ import (
 )
 
 var (
-	configFile  *string = flag.String("config", "./sqlregret.conf", "后悔药配置文件")
-	logcfgFile          = flag.String("logcfg", "./seelog.xml", "日志配置文件")
-	help                = flag.String("help", "help", "帮助文档")
-	filterDb            = flag.String("filter-db", "", "过滤的数据库名称")
-	filterTable         = flag.String("filter-table", "", "过滤的数据表名")
-	filterSQL           = flag.String("filter-sql", "", "过滤的语句类型(insert, update, delete) 默认为空表示三种都解析")
-	startFile           = flag.String("start-file", "", "开始日志文件")
-	endFile             = flag.String("end-file", "", "结束日志文件")
-	startPos            = flag.Int("start-pos", 0, "日志解析起点")
-	endPos              = flag.Int("end-pos", 0, "日志解析终点")
-	startTime           = flag.String("start-time", "", "日志解析开始时间点")
-	endTime             = flag.String("end-time", "", "日志解析结束时间点")
-	mode                = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式")
-	needReverse         = flag.Bool("rsv", true, "是否需要反向操作语句")
-	withDDL             = flag.Bool("with-ddl", false, "是否解析ddl语句")
+	configFile   *string = flag.String("config", "./sqlregret.conf", "后悔药配置文件")
+	logcfgFile           = flag.String("logcfg", "./seelog.xml", "日志配置文件")
+	help                 = flag.String("help", "help", "帮助文档")
+	filterDb             = flag.String("filter-db", "", "过滤的数据库名称")
+	filterTable          = flag.String("filter-table", "", "过滤的数据表名")
+	filterSQL            = flag.String("filter-sql", "", "过滤的语句类型(insert, update, delete) 默认为空表示三种都解析")
+	startFile            = flag.String("start-file", "", "开始日志文件")
+	endFile              = flag.String("end-file", "", "结束日志文件")
+	startPos             = flag.Int("start-pos", 0, "日志解析起点")
+	endPos               = flag.Int("end-pos", 0, "日志解析终点")
+	startTime            = flag.String("start-time", "", "日志解析开始时间点")
+	endTime              = flag.String("end-time", "", "日志解析结束时间点")
+	mode                 = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式")
+	needReverse          = flag.Bool("rsv", true, "是否需要反向操作语句")
+	withDDL              = flag.Bool("with-ddl", false, "是否解析ddl语句")
+	filterColumn         = flag.String("filter-column", "", "update(字段|改动前|改动后,字段|改动前|改动后) insert (字段|改动后) insert 与 update 用:连接 ")
 )
 
 func main() {
@@ -104,8 +105,35 @@ func ConfigCheck() {
 	}
 
 	config.G_filterConfig.WithDDL = *withDDL
-	//检查开始时间与结束时间
 
+	if *filterColumn != "" {
+		filterColumnStrs := strings.Split(*filterColumn, ":")
+		lenOfFilterColumn := len(filterColumnStrs)
+		if lenOfFilterColumn > 2 || lenOfFilterColumn == 0 {
+			fmt.Println("请检查输入的列过滤器")
+		} else {
+			for _, str := range filterColumnStrs {
+				columns := strings.Split(str, ",")
+				for _, column := range columns {
+					nba := strings.Split(column, "|") // name before after
+					if len(nba) == 2 {
+						// inster 过滤器
+						columnFilter := config.NewColumnFilter(nba[0], "", nba[1])
+						config.G_filterConfig.AppendInsertFilterColumn(columnFilter)
+					} else if len(nba) == 3 {
+						// update 过滤器
+						columnFilter := config.NewColumnFilter(nba[0], nba[1], nba[2])
+						config.G_filterConfig.AppendUpdateFilterColumn(columnFilter)
+					} else {
+						fmt.Println("请检查输入的列过滤器")
+						os.Exit(1)
+					}
+				}
+			}
+		}
+	}
+
+	//检查开始时间与结束时间
 	if *startTime == "" && *endTime != "" {
 		fmt.Println("不允许不存在开始时间却有结束时间的情况")
 		os.Exit(1)
