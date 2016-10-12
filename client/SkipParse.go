@@ -1,6 +1,8 @@
 package client
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/SDHM/sqlregret/binlogevent"
@@ -91,6 +93,12 @@ func FilterMode(eventType int) bool {
 }
 
 func FilterTime(timeSnap time.Time, eventType int) bool {
+
+	if config.G_filterConfig.EndTimeEnable() && timeSnap.After(config.G_filterConfig.EndTime) {
+		fmt.Println("解析完毕")
+		os.Exit(1)
+	}
+
 	if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
 		//开始时间和结束时间都设置了
 		if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
@@ -119,9 +127,19 @@ func FilterTime(timeSnap time.Time, eventType int) bool {
 
 func FilterPos(eventType int, fileIndex int, pos int64) bool {
 
+	if config.G_filterConfig.EndPosEnable() {
+		//如果文件索引超过了停止索引, 或者当前文件索引等于停止索引并且当前位置大于停止位置，则停止解析
+		if fileIndex > config.G_filterConfig.EndFileIndex || (fileIndex == config.G_filterConfig.EndFileIndex && int(pos) > config.G_filterConfig.EndPos) {
+			fmt.Println("解析完毕")
+			os.Exit(1)
+		}
+	}
+
 	if config.G_filterConfig.StartPosEnable() && config.G_filterConfig.EndPosEnable() {
-		if (fileIndex >= config.G_filterConfig.StartFileIndex && int(pos) >= config.G_filterConfig.StartPos) &&
-			(fileIndex <= config.G_filterConfig.EndFileIndex && int(pos) <= config.G_filterConfig.EndPos) {
+
+		if (fileIndex == config.G_filterConfig.StartFileIndex && int(pos) >= config.G_filterConfig.StartPos) ||
+			(fileIndex == config.G_filterConfig.EndFileIndex && int(pos) <= config.G_filterConfig.EndPos) ||
+			(fileIndex > config.G_filterConfig.StartFileIndex && fileIndex < config.G_filterConfig.EndFileIndex) {
 			return false
 		} else {
 			if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
@@ -132,8 +150,9 @@ func FilterPos(eventType int, fileIndex int, pos int64) bool {
 				return false
 			}
 		}
+
 	} else if config.G_filterConfig.StartPosEnable() && !config.G_filterConfig.EndTimeEnable() {
-		if fileIndex >= config.G_filterConfig.StartFileIndex && int(pos) >= config.G_filterConfig.StartPos {
+		if (fileIndex == config.G_filterConfig.StartFileIndex && int(pos) >= config.G_filterConfig.StartPos) || fileIndex > config.G_filterConfig.StartFileIndex {
 			return false
 		} else {
 			if eventType == binlogevent.WRITE_ROWS_EVENT_V1 || eventType == binlogevent.WRITE_ROWS_EVENT ||
