@@ -3,7 +3,7 @@
         <buffered size="10000" flushperiod="1000">
             <rollingfile type="date" filename="./binlog_parser.log" datepattern="2006.01.02" maxrolls="30"/>
         </buffered>
-        <filter levels="trace,info">
+        <!--<filter levels="trace,info">
             <console formatid="readable"/>
         </filter>
         <filter levels="debug">
@@ -17,7 +17,7 @@
         </filter>
         <filter levels="critical">
             <console formatid="critical_color"/>
-        </filter>
+        </filter>-->
     </outputs>
     <formats>
         <format id="readable" format="%Date(2006-01-02 15:04:05) %LEV  %Msg [%FuncShort@%File:%Line]%n"/>

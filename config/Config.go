@@ -29,7 +29,7 @@ func ParseConfigData(data []byte) (*Config, error) {
 		return nil, err
 	}
 
-	seelog.Debug("运行模式:", cfg.Mode)
+	seelog.Debugf("运行模式:%s", cfg.Mode)
 	return &cfg, nil
 }
 

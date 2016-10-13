@@ -37,19 +37,19 @@ var (
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	flag.Parse()
-	ConfigCheck()
-
 	cfg, err := config.ParseConfigFile(*configFile)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
 
+	flag.Parse()
+	ConfigCheck(cfg)
 	// 初始化log
 	defer seelog.Flush()
 	if err := initLogger(*logcfgFile); err != nil {
 		seelog.Debug("initLogger failed, log config path:", *logcfgFile, " err:", err)
+		return
+	}
+
+	if err != nil {
+		fmt.Println(err.Error())
 		return
 	}
 
@@ -72,7 +72,7 @@ func initLogger(cfgPath string) error {
 	return nil
 }
 
-func ConfigCheck() {
+func ConfigCheck(cfg *config.Config) {
 
 	//打印帮助
 	if *help == "" {
@@ -170,6 +170,8 @@ func ConfigCheck() {
 	if *startFile != "" && *startPos != 0 {
 		fileIndex, _ := strconv.Atoi(strings.Split(*startFile, ".")[1])
 		config.G_filterConfig.SetStartPos(fileIndex, *startPos)
+		cfg.MasterJournalName = *startFile
+		cfg.MasterPosition = *startPos
 	} else if *startFile == "" && *startPos == 0 {
 
 	} else {

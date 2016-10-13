@@ -101,8 +101,7 @@ func FilterTime(timeSnap time.Time, eventType int) bool {
 
 	if config.G_filterConfig.StartTimeEnable() && config.G_filterConfig.EndTimeEnable() {
 		//开始时间和结束时间都设置了
-		if timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime) {
-
+		if (timeSnap.After(config.G_filterConfig.StartTime) && timeSnap.Before(config.G_filterConfig.EndTime)) || timeSnap.Equal(config.G_filterConfig.StartTime) || timeSnap.Equal(config.G_filterConfig.EndTime) {
 			return false
 		} else {
 			//时间在两者之外，并且不是修改操作的直接跳过
@@ -115,7 +114,7 @@ func FilterTime(timeSnap time.Time, eventType int) bool {
 			}
 		}
 	} else if config.G_filterConfig.StartTimeEnable() && !config.G_filterConfig.EndTimeEnable() {
-		if timeSnap.After(config.G_filterConfig.StartTime) {
+		if timeSnap.After(config.G_filterConfig.StartTime) || timeSnap.Equal(config.G_filterConfig.StartTime) {
 			return false
 		} else {
 			return true
@@ -167,7 +166,7 @@ func FilterPos(eventType int, fileIndex int, pos int64) bool {
 		return false
 	}
 
-	return true
+	return false
 }
 
 func FilterColumns(eventType protocol.EventType, tableMeta *TableMeta, columns []*Column) bool {
