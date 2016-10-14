@@ -28,6 +28,7 @@ type FilterConfig struct {
 	withInsertFilterColumn bool            // 是否有插入操作的列过滤器
 	UpdateFilterColumn     []*ColumnFilter // 更新操作列过滤器
 	withUpdateFilterColumn bool            // 是否有更新操作的列过滤器
+	Dump                   bool            // 是否dump
 }
 
 type ColumnFilter struct {

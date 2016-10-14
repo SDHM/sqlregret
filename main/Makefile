@@ -1,8 +1,8 @@
 default:
-	python ../MarkGitFingerAndBuild.py
+	python ../Build.py
 
 linux:
-	python ../MarkGitFingerAndBuild.py linux
+	python ../Build.py linux
 
 clean:
 	go clean

@@ -32,6 +32,7 @@ var (
 	needReverse          = flag.Bool("rsv", true, "是否需要反向操作语句")
 	withDDL              = flag.Bool("with-ddl", false, "是否解析ddl语句")
 	filterColumn         = flag.String("filter-column", "", "update(字段|改动前|改动后,字段|改动前|改动后) insert (字段|改动后) insert 与 update 用:连接 ")
+	dump                 = flag.Bool("dump", false, "是否要dump，dump的话，只输出反向语句")
 )
 
 func main() {
@@ -105,6 +106,7 @@ func ConfigCheck(cfg *config.Config) {
 	}
 
 	config.G_filterConfig.WithDDL = *withDDL
+	config.G_filterConfig.Dump = *dump
 
 	if *filterColumn != "" {
 		filterColumnStrs := strings.Split(*filterColumn, ":")
