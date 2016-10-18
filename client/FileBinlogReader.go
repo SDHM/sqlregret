@@ -75,6 +75,8 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 			break
 		} else {
 			logFile := strings.Split(string(line), "/")[1]
+			lastSepPos := strings.LastIndex(string(line), "/")
+			logFile = string(line[lastSepPos+1:])
 			if logFile == filename {
 				this.index = index
 			}
