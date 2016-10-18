@@ -1,6 +1,6 @@
 package client
 
-import . "github.com/SDHM/sqlregret/mysql"
+import . "sqlregret/mysql"
 
 type Column struct {
 	ColumnType byte

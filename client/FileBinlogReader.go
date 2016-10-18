@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SDHM/sqlregret/binlogevent"
-	. "github.com/SDHM/sqlregret/mysql"
+	"sqlregret/binlogevent"
+	. "sqlregret/mysql"
+
 	"github.com/cihub/seelog"
 )
 

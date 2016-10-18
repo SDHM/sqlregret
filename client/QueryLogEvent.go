@@ -1,8 +1,8 @@
 package client
 
 import (
-	. "github.com/SDHM/sqlregret/binlogevent"
-	"github.com/SDHM/sqlregret/mysql"
+	. "sqlregret/binlogevent"
+	"sqlregret/mysql"
 )
 
 type QueryLogEvent struct {

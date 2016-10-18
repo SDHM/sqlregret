@@ -3,8 +3,9 @@ package client
 import (
 	"fmt"
 
-	. "github.com/SDHM/sqlregret/binlogevent"
-	"github.com/SDHM/sqlregret/mysql"
+	. "sqlregret/binlogevent"
+
+	"sqlregret/mysql"
 )
 
 type Previous_Gtids_Log_Event struct {

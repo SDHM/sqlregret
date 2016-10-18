@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SDHM/sqlregret/client"
-	"github.com/SDHM/sqlregret/config"
-	"github.com/SDHM/sqlregret/lifecycle"
+	"sqlregret/client"
+	"sqlregret/config"
+	"sqlregret/lifecycle"
+
 	"github.com/cihub/seelog"
 )
 

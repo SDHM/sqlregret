@@ -5,8 +5,8 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/SDHM/sqlregret/config"
-	"github.com/SDHM/sqlregret/parser"
+	"sqlregret/config"
+	"sqlregret/parser"
 )
 
 type Instance struct {
