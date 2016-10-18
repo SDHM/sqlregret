@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SDHM/sqlregret/binlogevent"
-	. "github.com/SDHM/sqlregret/mysql"
+	"sqlregret/binlogevent"
+	. "sqlregret/mysql"
+
 	"github.com/cihub/seelog"
 )
 
@@ -74,7 +75,9 @@ func (this *FileBinlogReader) Dump(position uint32, filename string) error {
 		if line, _, err := reader.ReadLine(); nil != err {
 			break
 		} else {
-			logFile := strings.Split(string(line), "/")[1]
+			lastSepPos := strings.LastIndex(string(line), "/")
+			logFile := string(line[lastSepPos+1:])
+			fmt.Println(logFile)
 			if logFile == filename {
 				this.index = index
 			}

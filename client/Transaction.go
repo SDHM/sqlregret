@@ -3,7 +3,7 @@ package client
 import (
 	"fmt"
 
-	"github.com/SDHM/sqlregret/config"
+	"sqlregret/config"
 )
 
 //收集事务消息

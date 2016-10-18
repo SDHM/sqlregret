@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/SDHM/sqlregret/binlogevent"
-	"github.com/SDHM/sqlregret/config"
-	"github.com/SDHM/sqlregret/mysql"
-	"github.com/SDHM/sqlregret/protocol"
+	. "sqlregret/binlogevent"
+
+	"sqlregret/config"
+	"sqlregret/mysql"
+	"sqlregret/protocol"
 	"github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
 )

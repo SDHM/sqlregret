@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/SDHM/sqlregret/mysql"
+	"sqlregret/mysql"
 )
 
 type LogHeader struct {

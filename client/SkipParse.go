@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/SDHM/sqlregret/binlogevent"
-	"github.com/SDHM/sqlregret/config"
-	"github.com/SDHM/sqlregret/protocol"
+	"sqlregret/binlogevent"
+	"sqlregret/config"
+	"sqlregret/protocol"
 )
 
 // 返回为false 表示不过滤 返回为true 表示过滤

@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SDHM/sqlregret/config"
-	"github.com/SDHM/sqlregret/instance"
+	"sqlregret/config"
+	"sqlregret/instance"
+
 	"github.com/cihub/seelog"
 )
 
