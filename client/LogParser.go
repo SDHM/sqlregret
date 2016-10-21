@@ -57,7 +57,9 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case ROWS_QUERY_LOG_EVENT:
 		{
-			this.ReadRowsQueryEvent(header, event_type, logBuf)
+			if config.G_filterConfig.Origin {
+				this.ReadRowsQueryEvent(header, event_type, logBuf)
+			}
 		}
 	case USER_VAR_EVENT:
 		{
@@ -215,6 +217,8 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 	//数据库过滤
 	if config.G_filterConfig.FilterDb != "" {
 		if !strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
+			// fmt.Printf("库不同过滤 dbName:%s configDb:%s \n", dbName,
+			// 	config.G_filterConfig.FilterDb)
 			return
 		}
 	}
@@ -223,9 +227,16 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 	if config.G_filterConfig.FilterTable != "" {
 		if !strings.EqualFold(tableName, config.G_filterConfig.FilterTable) ||
 			!strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
+			// fmt.Printf("表库不同过滤 dbName:%s tableName:%s configDb:%s configTb:%s\n", dbName,
+			// 	tableName, config.G_filterConfig.FilterDb, config.G_filterConfig.FilterTable)
 			return
 		}
 	}
+
+	// fmt.Println("dbName:", dbName)
+	// fmt.Println("tableName:", tableName)
+	// fmt.Println("configDb:", config.G_filterConfig.FilterTable)
+	// fmt.Println("configTb:", config.G_filterConfig.FilterDb)
 
 	//列过滤
 	tableMeta := this.getTableMeta(tableMapEvent.DbName, tableMapEvent.TblName, false)

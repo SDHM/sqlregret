@@ -33,6 +33,7 @@ var (
 	withDDL              = flag.Bool("with-ddl", false, "是否解析ddl语句")
 	filterColumn         = flag.String("filter-column", "", "update(字段|改动前|改动后,字段|改动前|改动后) insert (字段|改动后) insert 与 update 用:连接 ")
 	dump                 = flag.Bool("dump", false, "是否要dump，dump的话，只输出反向语句")
+	origin               = flag.Bool("origin", false, "是否解析原始语句")
 )
 
 func main() {
@@ -95,6 +96,8 @@ func ConfigCheck(cfg *config.Config) {
 	}
 
 	config.G_filterConfig.NeedReverse = *needReverse
+	config.G_filterConfig.Origin = *origin
+
 	config.G_filterConfig.FilterSQL = strings.ToLower(*filterSQL)
 	if config.G_filterConfig.FilterSQL != "update" &&
 		config.G_filterConfig.FilterSQL != "delete" &&
