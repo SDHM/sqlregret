@@ -158,7 +158,74 @@ update 字段|改动前|改动后,字段|改动前|改动后
 
 
 
+###演示用例
 
+1. 在线模式解析时间位置  `平时工作在这种低损耗的模式下，十秒钟一个记录`
+
+        ./sqlregret.exe --mode=mark
+        
+        演示sql: delete from xsq_venues_basicinfo where veId=1290;
+    
+2. 日志解析模式
+
+        ./sqlregret.exe --mode=parse
+	    
+	   演示sql: delete from xsq_venues_basicinfo where veId=990;
+
+3. 数据库、数据表过滤
+	  
+        ./sqlregret.exe --mode=parse --filter-db=xishiqu --filter-table=aaa;
+        
+        ./sqlregret.exe --mode=parse --filter-db=xishiqu --filter-table=xsq_venues_basicinfo;
+		
+4. 语句类型过滤 update、delete、insert
+	 	
+        ./sqlregret.exe --mode=parse --filter-db=xishiqu --filter-table=xsq_venues_basicinfo --filter-sql=insert;
+		
+5. 反向语句输出控制
+	  
+        ./sqlregret.exe --mode=parse --filter-db=xishiqu --filter-table=xsq_venues_basicinfo --filter-sql=insert --rsv=false;
+
+6. DDL语句输出控制
+		在审查过程中，有时候我们并不关心DDL语句、如alter table、create等，但是碰到有些特殊情况需要检查，可以用--with-ddl控制
+		
+7. 开始时间结束时间控制
+	 
+        ./sqlregret.exe --mode=parse --filter-db=xishiqu --filter-table=xsq_venues_basicinfo --start-time="2016-10-11 20:08:06" --rsv=false;
+	 
+        ./sqlregret.exe --mode=parse --filter-db=xishiqu --filter-table=xsq_venues_basicinfo --start-time="2016-10-11 20:08:06" --end-time="2016-10-14 10:03:57" --rsv=false;
+	   
+        演示sql:delete from xishiqu.xsq_venues_basicinfo where veId=1210;
+		
+8. 开始位置结束位置控制
+	
+        ./sqlregret.exe --mode=parse --start-file="mysql-bin.000012" --start-pos=8111 --rsv=false;
+	
+        ./sqlregret.exe --mode=parse --start-file="mysql-bin.000012" --start-pos=8111 --end-file="mysql-bin.000012" --end-pos=16967 --rsv=false;
+	
+9. 列控制
+	 
+        ./sqlregret.exe --mode=parse  --rsv=false --filter-column="sogoLng|xxx|xxx" > a.txt
+	 
+        ./sqlregret.exe --mode=parse  --rsv=false --filter-sql=insert --filter-column="deviceType|ddd" > a.txt
+	 
+10. 事务完整性检测
+	
+        ./sqlregret.exe --mode=parse  --rsv=false --filter-sql=insert --filter-column="deviceType|ddd"
+	
+        sudo ./sqlregret.exe --mode=parse  --rsv=false --filter-sql="" --filter-column="deviceType|ddd"
+        
+11. 只输出反向语句
+
+		./sqlregret.exe --mode=parse  --rsv=false --filter-sql=insert --filter-column="deviceType|ddd" --dump=true
+		
+12. 只输出逆向语句
+
+		./sqlregret.exe --mode=parse --dump=true
+		
+13. 不输出原始语句(原始传入的语句，用户给的), 有时候配置了记录原始语句
+		
+		./sqlregret.exe --mode=parse --origin=false
 
 
 
