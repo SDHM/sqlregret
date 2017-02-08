@@ -29,6 +29,7 @@ type FilterConfig struct {
 	UpdateFilterColumn     []*ColumnFilter // 更新操作列过滤器
 	withUpdateFilterColumn bool            // 是否有更新操作的列过滤器
 	Dump                   bool            // 是否dump
+	Origin                 bool            // 是否解析原始语句
 }
 
 type ColumnFilter struct {

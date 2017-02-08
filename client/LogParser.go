@@ -58,7 +58,9 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case ROWS_QUERY_LOG_EVENT:
 		{
-			this.ReadRowsQueryEvent(header, event_type, logBuf)
+			if config.G_filterConfig.Origin {
+				this.ReadRowsQueryEvent(header, event_type, logBuf)
+			}
 		}
 	case USER_VAR_EVENT:
 		{
@@ -216,6 +218,8 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 	//数据库过滤
 	if config.G_filterConfig.FilterDb != "" {
 		if !strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
+			// fmt.Printf("库不同过滤 dbName:%s configDb:%s \n", dbName,
+			// 	config.G_filterConfig.FilterDb)
 			return
 		}
 	}
@@ -224,9 +228,16 @@ func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf
 	if config.G_filterConfig.FilterTable != "" {
 		if !strings.EqualFold(tableName, config.G_filterConfig.FilterTable) ||
 			!strings.EqualFold(dbName, config.G_filterConfig.FilterDb) {
+			// fmt.Printf("表库不同过滤 dbName:%s tableName:%s configDb:%s configTb:%s\n", dbName,
+			// 	tableName, config.G_filterConfig.FilterDb, config.G_filterConfig.FilterTable)
 			return
 		}
 	}
+
+	// fmt.Println("dbName:", dbName)
+	// fmt.Println("tableName:", tableName)
+	// fmt.Println("configDb:", config.G_filterConfig.FilterTable)
+	// fmt.Println("configTb:", config.G_filterConfig.FilterDb)
 
 	//列过滤
 	tableMeta := this.getTableMeta(tableMapEvent.DbName, tableMapEvent.TblName, false)
@@ -433,15 +444,15 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
 	// 更新字段索引
 	updateCount := 0
-	for index, column := range after {
+	for _, column := range after {
 		if column.GetUpdated() {
 			updateCount += 1
 		}
 
-		if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
-			(!after[index].GetIsNull() || after[index].GetValue() != "") {
-			updateCount += 1
-		}
+		// if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
+		// 	(!after[index].GetIsNull() || after[index].GetValue() != "") {
+		// 	// updateCount += 1
+		// }
 	}
 
 	keyName := ""
@@ -468,8 +479,11 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 			}
 		}
 
-		if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
-			(!after[index].GetIsNull() || after[index].GetValue() != "") {
+		// if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
+		// 	(!after[index].GetIsNull() || after[index].GetValue() != "") {
+
+		if !column.GetUpdated() && ((column.GetIsNull() && !after[index].GetIsNull()) ||
+			(column.GetValue() == "" && after[index].GetValue() != "")) {
 			updateCount2 += 1
 
 			if updateCount != updateCount2 {
@@ -508,12 +522,13 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 	}
 
 	updateCount2 = 0
+
 	sqlregret := fmt.Sprintf("update %s.%s set ", tableMapEvent.DbName, tableMapEvent.TblName)
+
 	for index, column := range after {
 		if column.GetUpdated() {
 			updateCount2 += 1
 			if updateCount != updateCount2 {
-
 				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
 					sqlregret += column.GetName() + "='" + before[index].GetValue() + "', "
 				} else {
@@ -1102,7 +1117,7 @@ func (this *LogParser) ReadRow(
 			column.SetSqlType(int32(this.mysqlToJavaType(c.ColumnType, c.ColumnMeta, isBinary)))
 			column.SetValue("")
 			column.SetIsNull(true)
-			seelog.Errorf("空列索引:%d\t空列名称:%s\n", i, fieldMeta.ColumnName)
+			// seelog.Errorf("空列索引:%d\t空列名称:%s\n", i, fieldMeta.ColumnName)
 			continue
 		} else {
 			column.SetIsNull(false)
