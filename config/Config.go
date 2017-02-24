@@ -21,6 +21,7 @@ type Config struct {
 	DbUsername        string `json:"dbUsername"`
 	DbPassword        string `json:"dbPassword"`
 	DefaultDbName     string `json:"defaultDbName"`
+	LimitShowRow      int    `json:"limitShowRow"` // 在pre模式下，影响行数超过此值的予以显示
 }
 
 func ParseConfigData(data []byte) (*Config, error) {

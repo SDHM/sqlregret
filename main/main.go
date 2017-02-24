@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
 	"github.com/SDHM/sqlregret/instance"
 	"github.com/cihub/seelog"
@@ -28,12 +29,15 @@ var (
 	endPos               = flag.Int("end-pos", 0, "日志解析终点")
 	startTime            = flag.String("start-time", "", "日志解析开始时间点")
 	endTime              = flag.String("end-time", "", "日志解析结束时间点")
-	mode                 = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式")
+	mode                 = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式  pre:预解析模式 可统计事务的记录条数")
 	needReverse          = flag.Bool("rsv", true, "是否需要反向操作语句")
 	withDDL              = flag.Bool("with-ddl", false, "是否解析ddl语句")
 	filterColumn         = flag.String("filter-column", "", "update(字段|改动前|改动后,字段|改动前|改动后) insert (字段|改动后) insert 与 update 用:连接 ")
 	dump                 = flag.Bool("dump", false, "是否要dump，dump的话，只输出反向语句")
 	origin               = flag.Bool("origin", false, "是否解析原始语句")
+	limitShowRow         = flag.Int("limit", 2, "pre模式下影响行数超过此值的予以显示")
+	output               = flag.String("output", "stdout", "结果生成文件")
+	xid                  = flag.Int64("xid", 0, "单个事务解析")
 )
 
 func main() {
@@ -55,6 +59,7 @@ func main() {
 		return
 	}
 
+	client.G_transaction = client.NewTransaction(*output)
 	instance := instance.NewInstance(cfg)
 
 	if nil == instance {
@@ -89,15 +94,16 @@ func ConfigCheck(cfg *config.Config) {
 	}
 
 	config.G_filterConfig.Mode = strings.ToLower(*mode)
-	if config.G_filterConfig.Mode != "mark" && config.G_filterConfig.Mode != "parse" {
-		fmt.Println("mode必须为mark或者是parse")
+	if config.G_filterConfig.Mode != "mark" && config.G_filterConfig.Mode != "parse" && config.G_filterConfig.Mode != "pre" {
+		fmt.Println("mode必须为mark、parse、pre")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	config.G_filterConfig.NeedReverse = *needReverse
 	config.G_filterConfig.Origin = *origin
-
+	config.G_filterConfig.Limit = *limitShowRow
+	config.G_filterConfig.Xid = *xid
 	config.G_filterConfig.FilterSQL = strings.ToLower(*filterSQL)
 	if config.G_filterConfig.FilterSQL != "update" &&
 		config.G_filterConfig.FilterSQL != "delete" &&

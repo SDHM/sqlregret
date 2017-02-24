@@ -30,6 +30,8 @@ type FilterConfig struct {
 	withUpdateFilterColumn bool            // 是否有更新操作的列过滤器
 	Dump                   bool            // 是否dump
 	Origin                 bool            // 是否解析原始语句
+	Limit                  int             // pre 模式下影响行数超过此值的予以显示
+	Xid                    int64           // 单个事务解析
 }
 
 type ColumnFilter struct {

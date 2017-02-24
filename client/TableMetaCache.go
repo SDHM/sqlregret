@@ -1,8 +1,6 @@
 package client
 
-import (
-	"github.com/SDHM/sqlregret/mysql"
-)
+import "github.com/SDHM/sqlregret/mysql"
 
 type TableMetaCache struct {
 	reader            IBinlogReader
@@ -47,6 +45,7 @@ func (this *TableMetaCache) parserTableMeta(rst *mysql.Result, fullName string) 
 		fieldMeta := new(FieldMeta)
 		var result string
 		for index2 := range rst.Values[index] {
+
 			switch value := rst.Values[index][index2].(type) {
 			case []uint8:
 				result = string(value)

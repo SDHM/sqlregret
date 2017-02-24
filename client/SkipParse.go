@@ -34,7 +34,7 @@ func FilterSkipSQL(eventType int) bool {
 				eventType == binlogevent.UPDATE_ROWS_EVENT ||
 				eventType == binlogevent.DELETE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.DELETE_ROWS_EVENT {
-				g_transaction.SkipSomeThing()
+				G_transaction.SkipSomeThing()
 				return true
 			} else if eventType == binlogevent.WRITE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.WRITE_ROWS_EVENT {
@@ -47,7 +47,7 @@ func FilterSkipSQL(eventType int) bool {
 				eventType == binlogevent.UPDATE_ROWS_EVENT ||
 				eventType == binlogevent.WRITE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.WRITE_ROWS_EVENT {
-				g_transaction.SkipSomeThing()
+				G_transaction.SkipSomeThing()
 				return true
 			} else if eventType == binlogevent.DELETE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.DELETE_ROWS_EVENT {
@@ -60,7 +60,7 @@ func FilterSkipSQL(eventType int) bool {
 				eventType == binlogevent.DELETE_ROWS_EVENT ||
 				eventType == binlogevent.WRITE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.WRITE_ROWS_EVENT {
-				g_transaction.SkipSomeThing()
+				G_transaction.SkipSomeThing()
 				return true
 			} else if eventType == binlogevent.UPDATE_ROWS_EVENT_V1 ||
 				eventType == binlogevent.UPDATE_ROWS_EVENT {

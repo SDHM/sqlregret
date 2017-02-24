@@ -1,6 +1,8 @@
 package client
 
 import (
+	"time"
+
 	. "github.com/SDHM/sqlregret/binlogevent"
 	"github.com/SDHM/sqlregret/mysql"
 )
@@ -18,9 +20,7 @@ func ParseQueryLogEvent(logbuf *mysql.LogBuffer,
 
 	this := new(QueryLogEvent)
 	this.sessionId = int64(logbuf.GetUInt32())
-
 	this.execTime = int64(logbuf.GetUInt32())
-
 	schema_length := logbuf.GetUInt8()
 	//error_code
 	this.errCode = int32(logbuf.GetUInt16())
@@ -51,4 +51,9 @@ func (this *QueryLogEvent) GetSessionId() int64 {
 
 func (this *QueryLogEvent) GetSchema() string {
 	return this.dbName
+}
+
+func (this *QueryLogEvent) GetTime() string {
+	timeSnap := time.Unix(this.execTime, 0)
+	return timeSnap.Format("2006-01-02 15:04:05")
 }

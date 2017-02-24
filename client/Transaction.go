@@ -2,17 +2,23 @@ package client
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/SDHM/sqlregret/config"
 )
 
 //收集事务消息
 type Transaction struct {
-	withBegin bool       // 是否有事务开始标志
-	withEnd   bool       // 是否有事务结束标志
-	beSkip    bool       // 是否跳过了某些语句没解析
-	sqlArray  []*ShowSql // sql语句数组
-	xid       int64      // 事务id号
+	binlogFile string     // 当前事务所在的binlog文件
+	offset     int64      // 当前事务所在的偏移
+	beginTime  string     // 当前事务开始时间
+	withBegin  bool       // 是否有事务开始标志
+	withEnd    bool       // 是否有事务结束标志
+	beSkip     bool       // 是否跳过了某些语句没解析
+	sqlArray   []*ShowSql // sql语句数组
+	sqlCount   int        // 事务事件总数
+	xid        int64      // 事务id号
+	outputFile *os.File
 }
 
 type ShowSql struct {
@@ -30,7 +36,7 @@ func NewShowSql(bePrompt bool, sql string, bePrint bool) *ShowSql {
 }
 
 func (this *ShowSql) BePrompt() bool {
-	return this.bePrint
+	return this.bePrompt
 }
 
 func (this *ShowSql) GetSql() string {
@@ -42,13 +48,41 @@ func (this *ShowSql) BePrint() bool {
 }
 
 var (
-	g_transaction Transaction
+	G_transaction *Transaction
 )
 
-func (this *Transaction) Begin() {
+func NewTransaction(filename string) *Transaction {
+	this := new(Transaction)
+	if filename == "stdout" {
+		this.outputFile = os.Stdout
+	} else {
+		if checkFileIsExist(filename) { //如果文件存在
+			os.Remove(filename)
+			this.outputFile, _ = os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666) //创建文件
+		} else {
+			this.outputFile, _ = os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666) //创建文件
+		}
+	}
+
+	return this
+}
+
+func checkFileIsExist(filename string) bool {
+	var exist = true
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		exist = false
+	}
+	return exist
+}
+
+func (this *Transaction) Begin(beginTime string, file string, pos int64) {
+	this.binlogFile = file
+	this.beginTime = beginTime
+	this.offset = pos
 	this.withBegin = true
 	this.withEnd = false
 	this.xid = 1
+	this.sqlCount = 0
 	this.sqlArray = make([]*ShowSql, 0, 2)
 }
 
@@ -58,7 +92,17 @@ func (this *Transaction) End(xid int64) {
 }
 
 func (this *Transaction) AppendSQL(sql *ShowSql) {
+
+	if config.G_filterConfig.Mode == "pre" {
+		this.appendCount()
+		return
+	}
+
 	this.sqlArray = append(this.sqlArray, sql)
+}
+
+func (this *Transaction) appendCount() {
+	this.sqlCount++
 }
 
 func (this *Transaction) PrintTransaction() {
@@ -77,29 +121,69 @@ func (this *Transaction) SkipSomeThing() {
 }
 
 func (this *Transaction) output(full bool) {
+	if config.G_filterConfig.Xid == 0 {
+		this.oneTransactionOutPut(full)
+	} else {
+		if config.G_filterConfig.Xid == this.xid {
+			this.oneTransactionOutPut(full)
+			this.outputFile.WriteString("事务解析完毕\n")
+			os.Exit(1)
+		}
+	}
+}
+
+func (this *Transaction) oneTransactionOutPut(full bool) {
+	effectorRow := this.sqlCount / 4
+	if config.G_filterConfig.Mode == "pre" && effectorRow > config.G_filterConfig.Limit {
+		str := fmt.Sprintf("事务文件:%s\t事务偏移:%d\t事务影响行数:%d\t事务ID:%d\n", this.binlogFile, this.offset, effectorRow, this.xid)
+		this.outputFile.WriteString(str)
+		return
+	}
+
 	if len(this.sqlArray) > 0 && !config.G_filterConfig.Dump {
-		fmt.Println("\n事务开始")
+		str := fmt.Sprintf("\n事务开始\n")
+		this.WriteAll(str)
 	}
 
 	if !full {
 		if !config.G_filterConfig.Dump {
-			fmt.Println("这是一个不完整的事务")
+			str := fmt.Sprintf("这是一个不完整的事务\n")
+			this.WriteAll(str)
 		}
 	}
 
 	if full && this.beSkip && len(this.sqlArray) >= 1 {
 		if !config.G_filterConfig.Dump {
-			fmt.Println("这是一个不完整的事务")
+			str := fmt.Sprintln("这是一个不完整的事务")
+			this.WriteAll(str)
 		}
 	}
 
 	for _, sql := range this.sqlArray {
 		if sql.BePrint() {
-			fmt.Print(sql.GetSql())
+			str := fmt.Sprintf(sql.GetSql())
+			this.WriteAll(str)
 		}
 	}
 
 	if len(this.sqlArray) > 0 && !config.G_filterConfig.Dump {
-		fmt.Printf("提交事务:%d\n\n", this.xid)
+		str := fmt.Sprintf("提交事务:%d\n\n", this.xid)
+		this.WriteAll(str)
+	}
+}
+
+func (this *Transaction) WriteAll(str string) {
+	if nil == this.outputFile {
+		return
+	}
+
+	length := len(str)
+	writeLen := 0
+	for writeLen != length {
+		if n, err := this.outputFile.WriteString(str[writeLen:]); nil != err {
+			return
+		} else {
+			writeLen += n
+		}
 	}
 }
