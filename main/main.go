@@ -8,7 +8,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+	"utility"
 
 	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
@@ -67,7 +69,26 @@ func main() {
 		return
 	}
 
+	// 准备处理信号
+	sh := utility.NewSignalHandler()
+	sh.Register(os.Interrupt, exitSignal)
+	sh.Register(syscall.SIGTERM, exitSignal)
+	sh.Register(syscall.SIGUSR1, reloadSignal)
+	sh.Start()
+
 	instance.Start()
+}
+
+// FlushDataBeforeExit 信号处理函数，在退出前触发最后一次数据库操作
+func exitSignal(s os.Signal) (isExit bool) {
+	// log.Info("yongle Process is ready to exit.")
+	os.Exit(0)
+	return true
+}
+
+func reloadSignal(s os.Signal) (isExit bool) {
+	initLogger(*logcfgFile)
+	return false
 }
 
 func initLogger(cfgPath string) error {

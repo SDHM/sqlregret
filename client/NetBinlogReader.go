@@ -215,7 +215,8 @@ func (this *NetBinlogReader) ParseBinlog() error {
 			if FilterSkipSQL(header.GetEventType()) {
 				continue
 			}
-
+			// sss := fmt.Sprintf("时间:%s\t文件名:%s\t位置:%d", timeSnap.Format("2006-01-02 15:04:05"), this.binlogFileName, header.GetLogPos())
+			// fmt.Println("str:", sss)
 			this.ParseLog(header, by[0:])
 		}
 	}
@@ -231,7 +232,7 @@ func (this *NetBinlogReader) ParseLog(header *LogHeader, by []byte) {
 				endPos := len(by) - 4
 				this.Parse(header, NewLogBuffer(by[20:endPos]), this.SwitchLogFile)
 			} else {
-				// fmt.Println("eventType:", header.GetEventType())
+				// time.Sleep(time.Millisecond * 200)
 			}
 		} else {
 			// fmt.Printf("notcrc eventLen:%d\t checksumalg:%d\n", header.GetEventLen(), this.context.formatDescription.GetChecksumAlg())

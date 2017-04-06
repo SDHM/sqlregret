@@ -45,14 +45,17 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case WRITE_ROWS_EVENT_V1, WRITE_ROWS_EVENT:
 		{
+			// fmt.Println("eventType: WRITE logBuf:", logBuf.GetRestLen())
 			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case UPDATE_ROWS_EVENT_V1, UPDATE_ROWS_EVENT:
 		{
+			// fmt.Println("eventType: UPDATE logBuf:", logBuf.GetRestLen())
 			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case DELETE_ROWS_EVENT_V1, DELETE_ROWS_EVENT:
 		{
+			// fmt.Println("eventType: DELETE logBuf:", logBuf.GetRestLen())
 			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case ROWS_QUERY_LOG_EVENT:
@@ -176,7 +179,9 @@ func (this *LogParser) ReadTableMapEvent(logbuf *mysql.LogBuffer) {
 func (this *LogParser) ReadRowsQueryEvent(logHeader *LogHeader, event_type int, logbuf *mysql.LogBuffer) {
 	rowsQueryEvent := ParseRowsQueryEvent(logbuf, this.context.GetFormatDescription())
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
+
 	fmt.Printf("时间戳:%s\t原始语句为:%s;\n", timeSnap.Format("2006-01-02 15:04:05"), rowsQueryEvent.GetRowsQueryString())
+
 }
 
 func (this *LogParser) ReadRowEvent(logHeader *LogHeader, event_type int, logbuf *mysql.LogBuffer) {
@@ -445,9 +450,21 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
 	// 更新字段索引
 	updateCount := 0
-	for _, column := range after {
+	for index, column := range after {
 		if column.GetUpdated() {
 			updateCount += 1
+		} else {
+			if before[index].GetValue() == "" && after[index].GetValue() != "" {
+				// fmt.Printf("update1 before:%s \tafter:%s\n", before[index].GetValue(), after[index].GetValue())
+				updateCount += 1
+			} else if before[index].GetIsNull() && !after[index].GetIsNull() {
+				// fmt.Printf("update2 before:%s \tafter:%s\n", before[index].GetValue(), after[index].GetValue())
+				updateCount += 1
+			} else if !before[index].GetIsNull() && after[index].GetIsNull() {
+				updateCount += 1
+			} else if before[index].GetValue() != "" && after[index].GetValue() == "" {
+				updateCount += 1
+			}
 		}
 
 		// if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
@@ -476,19 +493,79 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 				} else {
 					sql += column.GetName() + "=" + column.GetValue()
 				}
-
 			}
 		}
 
 		// if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
 		// 	(!after[index].GetIsNull() || after[index].GetValue() != "") {
 
-		if !column.GetUpdated() && ((column.GetIsNull() && !after[index].GetIsNull()) ||
-			(column.GetValue() == "" && after[index].GetValue() != "")) {
+		// if !column.GetUpdated() && ((column.GetIsNull() && !after[index].GetIsNull()) ||
+		// 	(column.GetValue() == "" && after[index].GetValue() != "")) {
+		// 	updateCount2 += 1
+
+		// 	if updateCount != updateCount2 {
+
+		// 		if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+		// 			sql += column.GetName() + "='" + column.GetValue() + "', "
+		// 		} else {
+		// 			sql += column.GetName() + "=" + column.GetValue() + ", "
+		// 		}
+		// 	} else {
+		// 		if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+		// 			sql += column.GetName() + "='" + column.GetValue() + "'"
+		// 		} else {
+		// 			sql += column.GetName() + "=" + column.GetValue()
+		// 		}
+		// 	}
+		// } else
+		if !column.GetUpdated() && (!before[index].GetIsNull() && before[index].GetValue() == "" && after[index].GetValue() != "") {
 			updateCount2 += 1
-
 			if updateCount != updateCount2 {
-
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "', "
+				} else {
+					sql += column.GetName() + "=" + column.GetValue() + ", "
+				}
+			} else {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "'"
+				} else {
+					sql += column.GetName() + "=" + column.GetValue()
+				}
+			}
+		} else if !column.GetUpdated() && (before[index].GetIsNull() && !after[index].GetIsNull()) {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "', "
+				} else {
+					sql += column.GetName() + "=" + column.GetValue() + ", "
+				}
+			} else {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "='" + column.GetValue() + "'"
+				} else {
+					sql += column.GetName() + "=" + column.GetValue()
+				}
+			}
+		} else if !before[index].GetIsNull() && after[index].GetIsNull() {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "=NULL, "
+				} else {
+					sql += column.GetName() + "=NULL, "
+				}
+			} else {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sql += column.GetName() + "=NULL"
+				} else {
+					sql += column.GetName() + "=NULL"
+				}
+			}
+		} else if before[index].GetValue() != "" && after[index].GetValue() == "" {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
 				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
 					sql += column.GetName() + "='" + column.GetValue() + "', "
 				} else {
@@ -544,15 +621,54 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 			}
 		}
 
-		if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
-			(!after[index].GetIsNull() && after[index].GetValue() != "") {
+		// if (!column.GetUpdated() && (column.GetIsNull() || column.GetValue() == "")) &&
+		// 	(!after[index].GetIsNull() && after[index].GetValue() != "") {
+		// 	updateCount2 += 1
+		// 	if updateCount != updateCount2 {
+		// 		sqlregret += column.GetName() + "=\"\"" + ", "
+		// 	} else {
+		// 		sqlregret += column.GetName() + "=\"\""
+		// 	}
+		// }
+
+		if !column.GetUpdated() && (!before[index].GetIsNull() && before[index].GetValue() == "" && after[index].GetValue() != "") {
 			updateCount2 += 1
 			if updateCount != updateCount2 {
 				sqlregret += column.GetName() + "=\"\"" + ", "
 			} else {
 				sqlregret += column.GetName() + "=\"\""
 			}
+		} else if !column.GetUpdated() && (before[index].GetIsNull() && !after[index].GetIsNull()) {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				sqlregret += column.GetName() + "=NULL" + ", "
+			} else {
+				sqlregret += column.GetName() + "=NULL"
+			}
+		} else if !before[index].GetIsNull() && after[index].GetIsNull() {
+			updateCount2 += 1
+			if updateCount != updateCount2 {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sqlregret += column.GetName() + "='" + before[index].GetValue() + "', "
+				} else {
+					sqlregret += column.GetName() + "=" + before[index].GetValue() + ", "
+				}
+			} else {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sqlregret += column.GetName() + "='" + before[index].GetValue() + "'"
+				} else {
+					sqlregret += column.GetName() + "=" + before[index].GetValue()
+				}
+			}
+		} else if before[index].GetValue() != "" && after[index].GetValue() == "" {
+			updateCount2 += 1
+			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+				sqlregret += column.GetName() + "='" + before[index].GetValue() + "'"
+			} else {
+				sqlregret += column.GetName() + "=" + before[index].GetValue()
+			}
 		}
+
 	}
 
 	sqlregret += fmt.Sprintf(" where %s=%s", keyName, keyValue)
@@ -1119,7 +1235,7 @@ func (this *LogParser) ReadRow(
 			column.SetSqlType(int32(this.mysqlToJavaType(c.ColumnType, c.ColumnMeta, isBinary)))
 			column.SetValue("")
 			column.SetIsNull(true)
-			// seelog.Errorf("空列索引:%d\t空列名称:%s\n", i, fieldMeta.ColumnName)
+			// fmt.Printf("空列索引:%d\t空列名称:%s\n", i, fieldMeta.ColumnName)
 			continue
 		} else {
 			column.SetIsNull(false)
