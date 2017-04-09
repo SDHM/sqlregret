@@ -359,11 +359,11 @@ func (this *LogParser) transformToSqlInsert(logHeader *LogHeader, tableMapEvent 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
 	rstSql := fmt.Sprintf("时间戳:%s\t插入语句为:", timeSnap.Format("2006-01-02 15:04:05"))
 
-	G_transaction.AppendSQL(NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
-	G_transaction.AppendSQL(NewShowSql(false, sql+";", !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sql+";", !config.G_filterConfig.Dump))
 
 	if !config.G_filterConfig.NeedReverse {
-		G_transaction.AppendSQL(NewShowSql(true, "\n", true))
+		G_transaction.AppendSQL(&timeSnap, NewShowSql(true, "\n", true))
 		return
 	}
 
@@ -383,8 +383,8 @@ func (this *LogParser) transformToSqlInsert(logHeader *LogHeader, tableMapEvent 
 	}
 
 	rstSql = fmt.Sprintf("\t对应的反向insert语句:")
-	G_transaction.AppendSQL(NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
-	G_transaction.AppendSQL(NewShowSql(false, sql+"\n", true))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sql+"\n", true))
 }
 
 func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, columns []*protocol.Column) {
@@ -407,11 +407,11 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
 	rstSql := fmt.Sprintf("时间戳:%s\t删除语句为:", timeSnap.Format("2006-01-02 15:04:05"))
 
-	G_transaction.AppendSQL(NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
-	G_transaction.AppendSQL(NewShowSql(false, sql, !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sql, !config.G_filterConfig.Dump))
 
 	if !config.G_filterConfig.NeedReverse {
-		G_transaction.AppendSQL(NewShowSql(true, "\n", true))
+		G_transaction.AppendSQL(&timeSnap, NewShowSql(true, "\n", true))
 		return
 	}
 
@@ -443,8 +443,8 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 	}
 
 	rstSql = fmt.Sprintf("\t对应的反向insert语句:")
-	G_transaction.AppendSQL(NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
-	G_transaction.AppendSQL(NewShowSql(false, regretsql+";\n", true))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, regretsql+";\n", true))
 }
 
 func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent *TableMapLogEvent, before []*protocol.Column, after []*protocol.Column) {
@@ -591,11 +591,11 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
 	rstSql := fmt.Sprintf("时间戳:%s  update语句:", timeSnap.Format("2006-01-02 15:04:05"))
 
-	G_transaction.AppendSQL(NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
-	G_transaction.AppendSQL(NewShowSql(false, sql+";", !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sql+";", !config.G_filterConfig.Dump))
 
 	if !config.G_filterConfig.NeedReverse {
-		G_transaction.AppendSQL(NewShowSql(true, "\n", true))
+		G_transaction.AppendSQL(&timeSnap, NewShowSql(true, "\n", true))
 		return
 	}
 
@@ -668,13 +668,12 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 				sqlregret += column.GetName() + "=" + before[index].GetValue()
 			}
 		}
-
 	}
 
 	sqlregret += fmt.Sprintf(" where %s=%s", keyName, keyValue)
 	rstSql = fmt.Sprintf("\t\t对应的反向update语句:")
-	G_transaction.AppendSQL(NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
-	G_transaction.AppendSQL(NewShowSql(false, sqlregret+";\n", true))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
+	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sqlregret+";\n", true))
 }
 
 func (this *LogParser) fetchValue(logbuf *mysql.LogBuffer, columnType byte, meta int, isBinary bool) (interface{}, JavaType, int) {
@@ -742,13 +741,18 @@ func (this *LogParser) fetchValue(logbuf *mysql.LogBuffer, columnType byte, meta
 		{
 			precision := meta >> 8
 			decimals := meta & 0xff
-			javaType = DECIMAL
+
 			value, typeLen = logbuf.GetDecimal(precision, decimals)
+
+			javaType = DECIMAL
+			typeLen = precision
+			// fmt.Printf("decimal:%v per:%d dec:%d\n", value, precision, decimals)
 		}
 	case mysql.MYSQL_TYPE_FLOAT:
 		{
 			javaType = REAL
 			value, typeLen = logbuf.GetFloat32(), 4
+			fmt.Println("float32:", value)
 		}
 	case mysql.MYSQL_TYPE_DOUBLE:
 		{

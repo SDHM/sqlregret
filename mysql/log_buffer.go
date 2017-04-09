@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"math"
@@ -302,6 +303,7 @@ func (this *LogBuffer) GetLength() int {
 
 func (this *LogBuffer) GetDecimal(precision, scale int) (string, int) {
 	by := this.buffer[this.pos:]
+
 	intg := precision - scale
 	frac := scale
 	intg0 := intg / DIG_PER_INT32
@@ -309,32 +311,50 @@ func (this *LogBuffer) GetDecimal(precision, scale int) (string, int) {
 	intg0x := intg - intg0*DIG_PER_INT32
 	frac0x := frac - frac0*DIG_PER_INT32
 
-	str, length := this.getDecimal(by, intg, frac, intg0, frac0, intg0x, frac0x)
-	this.pos += length
+	binSize := intg0*SIZE_OF_INT32 + dig2bytes[intg0x] + frac0*SIZE_OF_INT32 + dig2bytes[frac0x]
+	// if this.pos+binSize > this.pos+this.length {
+	// 	// panic(fmt.Sprintf("limit excceed:%d" + (position + binSize - origin)))
+	// 	panic("ddd")
+	// }
 
-	return str, length
+	// fmt.Printf("bytes:[% 2x] intg:%d\t frac:%d\t intg0:%d\t frac0:%d\t intg0x:%d\t frac0x:%d\t binSize:%d\t\n",
+	// by, intg, frac, intg0, frac0, intg0x, frac0x, binSize)
+	str := this.getDecimal(by, intg, frac, intg0, frac0, intg0x, frac0x)
+	this.pos += binSize
+	return str, binSize
 }
 
-func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, frac0x int) (string, int) {
-	var mask, length, from, pos int
+func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, frac0x int) string {
+	var mask, length, from int
+
 	if (by[0] & 0x80) == 0x80 {
 		mask = 0
 	} else {
 		mask = -1
-		length += 1
 	}
 
-	if intg == 0 {
-		length += 1
+	if mask != 0 {
+		length = 1
 	} else {
+		length = 0
+	}
+
+	if intg != 0 {
 		length += intg
+	} else {
+		length += 1
 	}
 
 	if frac != 0 {
-		length += (1 + frac)
+		length += 1
 	}
 
+	length += frac
+
 	buf := make([]byte, length)
+
+	pos := int(0)
+	// 添加负号
 	if mask != 0 {
 		buf[pos] = '-'
 		pos++
@@ -345,26 +365,27 @@ func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, f
 
 	if intg0x != 0 {
 		i := dig2bytes[intg0x]
-		var x uint32 = 0
+		var x int32 = 0
 		switch i {
 		case 1:
-			x = uint32(by[from])
+			x = int32(int8(by[from] & 0xff))
 		case 2:
-			x = uint32(binary.BigEndian.Uint16(by[from : from+2]))
+			x = int32(binary.BigEndian.Uint16(by[from : from+2]))
 		case 3:
-			x = uint32(by[from])<<16 | uint32(by[from+1])<<8 | uint32(by[from+2])
+			x = int32(by[from])<<16 | int32(0xff&by[from+1])<<8 | int32(0xff&by[from+2])
 		case 4:
-			x = binary.BigEndian.Uint32(by[from : from+4])
+			x = int32(binary.BigEndian.Uint32(by[from : from+4]))
 		}
+
 		from += i
-		x ^= uint32(mask)
+		x ^= int32(mask)
 
 		if x != 0 {
 			for j := intg0x; j > 0; j-- {
-				divisor := uint32(powers10[j-1])
+				divisor := int32(powers10[j-1])
 				y := x / divisor
 				if mark < pos || y != 0 {
-					buf[pos] = byte('0') + byte(y)
+					buf[pos] = byte('0' + y)
 					pos++
 				}
 				x -= y * divisor
@@ -373,23 +394,23 @@ func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, f
 	}
 
 	for stop := from + intg0*SIZE_OF_INT32; from < stop; from += SIZE_OF_INT32 {
-		x := binary.BigEndian.Uint32(by[from : from+4])
-		x ^= uint32(mask)
+		x := int32(binary.BigEndian.Uint32(by[from : from+4]))
+		x ^= int32(mask)
 		if x != 0 {
 			if mark < pos {
 				for i := DIG_PER_DEC1; i > 0; i-- {
-					divisor := powers10[i-1]
-					y := x / uint32(divisor)
-					buf[pos] = byte('0') + byte(y)
+					divisor := int32(powers10[i-1])
+					y := x / int32(divisor)
+					buf[pos] = byte('0' + y)
 					pos++
 					x -= y * divisor
 				}
 			} else {
 				for i := DIG_PER_DEC1; i > 0; i-- {
-					divisor := powers10[i-1]
-					y := x / uint32(divisor)
+					divisor := int32(powers10[i-1])
+					y := x / int32(divisor)
 					if mark < pos || y != 0 {
-						buf[pos] = byte('0') + byte(y)
+						buf[pos] = byte('0' + y)
 						pos++
 					}
 					x -= y * divisor
@@ -401,6 +422,7 @@ func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, f
 				pos++
 			}
 		}
+
 	}
 
 	if mark == pos {
@@ -414,13 +436,13 @@ func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, f
 		mark = pos
 
 		for stop := from + frac0*SIZE_OF_INT32; from < stop; from += SIZE_OF_INT32 {
-			x := binary.BigEndian.Uint32(by[from : from+4])
-			x ^= uint32(mask)
+			x := int32(binary.BigEndian.Uint32(by[from : from+4]))
+			x ^= int32(mask)
 			if x != 0 {
 				for i := DIG_PER_DEC1; i > 0; i-- {
-					divisor := powers10[i-1]
-					y := x / uint32(divisor)
-					buf[pos] = byte('0') + byte(y)
+					divisor := int32(powers10[i-1])
+					y := x / divisor
+					buf[pos] = byte('0' + y)
 					pos++
 					x -= y * divisor
 				}
@@ -434,27 +456,28 @@ func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, f
 
 		if frac0x != 0 {
 			i := dig2bytes[frac0x]
-			var x uint32 = 0
+			var x int32 = 0
 			switch i {
 			case 1:
-				x = uint32(by[from])
+				x = int32(int8(by[from] & 0xff))
 			case 2:
-				x = uint32(binary.BigEndian.Uint16(by[from : from+2]))
+				x = int32(binary.BigEndian.Uint16(by[from : from+2]))
 			case 3:
-				x = uint32(by[from])<<16 | uint32(by[from+1])<<8 | uint32(by[from+2])
+				x = int32(by[from])<<16 | int32(by[from+1])<<8 | int32(by[from+2])
 			case 4:
-				x = binary.BigEndian.Uint32(by[from : from+4])
+				x = int32(binary.BigEndian.Uint32(by[from : from+4]))
 			}
-			from += i
-			x ^= uint32(mask)
+
+			x ^= int32(mask)
+
 			if x != 0 {
 				dig := DIG_PER_DEC1 - frac0x
-				x *= uint32(powers10[dig])
+				x *= int32(powers10[dig])
 
 				for j := DIG_PER_DEC1; j > dig; j-- {
-					divisor := powers10[j-1]
-					y := x / uint32(divisor)
-					buf[pos] = byte('0') + byte(y)
+					divisor := int32(powers10[j-1])
+					y := x / divisor
+					buf[pos] = byte('0' + y)
 					pos++
 					x -= y * divisor
 				}
@@ -469,7 +492,9 @@ func (this *LogBuffer) getDecimal(by []byte, intg, frac, intg0, frac0, intg0x, f
 
 	by[0] ^= 0x80
 
-	return string(buf), from
+	buf = bytes.TrimRight(buf, string([]byte{0}))
+
+	return string(buf)
 }
 
 func (this *LogBuffer) GetTimeStringFromUnixTimeStamp(timestamp int64) string {
