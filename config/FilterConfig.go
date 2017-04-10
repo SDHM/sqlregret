@@ -32,6 +32,7 @@ type FilterConfig struct {
 	Origin                 bool            // 是否解析原始语句
 	Limit                  int             // pre 模式下影响行数超过此值的予以显示
 	Xid                    int64           // 单个事务解析
+	BigTime                int             // 单个事务耗费时间过滤
 }
 
 type ColumnFilter struct {

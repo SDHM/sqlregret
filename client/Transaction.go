@@ -96,17 +96,19 @@ func (this *Transaction) End(xid int64) {
 
 func (this *Transaction) AppendSQL(t *time.Time, sql *ShowSql) {
 
-	if this.beginTime == nil {
-		// fmt.Println("ddddbegin:", (*t))
-		this.beginTime = t
-	}
-	if this.endTime == nil {
-		this.endTime = t
-	} else {
-		if (*t).After(*this.endTime) {
+	if config.G_filterConfig.Mode == "bigt" {
+		if this.beginTime == nil {
+			this.beginTime = t
+		}
+		if this.endTime == nil {
 			this.endTime = t
+		} else {
+			if (*t).After(*this.endTime) {
+				this.endTime = t
+			}
 		}
 	}
+
 	if config.G_filterConfig.Mode == "pre" {
 		this.appendCount()
 		return
@@ -147,13 +149,19 @@ func (this *Transaction) output(full bool) {
 }
 
 func (this *Transaction) oneTransactionOutPut(full bool) {
+
+	second := (*this.endTime).Sub(*this.beginTime).Seconds()
+	if config.G_filterConfig.Mode == "bigt" && int(second) < config.G_filterConfig.BigTime {
+		this.beginTime = nil
+		this.endTime = nil
+		this.sqlArray = nil
+		return
+	}
+
 	effectorRow := this.sqlCount / 4
 	if config.G_filterConfig.Mode == "pre" && effectorRow > config.G_filterConfig.Limit {
-		fmt.Println("begin:", (*this.beginTime))
-		fmt.Println("begin:", (*this.endTime))
 		str := fmt.Sprintf("事务文件:%s\t事务偏移:%d\t事务影响行数:%d\t事务ID:%d\n", this.binlogFile, this.offset, effectorRow, this.xid)
 		this.outputFile.WriteString(str)
-
 		return
 	}
 
@@ -185,60 +193,25 @@ func (this *Transaction) oneTransactionOutPut(full bool) {
 
 	if len(this.sqlArray) > 0 && !config.G_filterConfig.Dump {
 		str := fmt.Sprintf("提交事务:%d", this.xid)
-		second := (*this.endTime).Sub(*this.beginTime).Seconds()
-		if second >= 60.0 {
-			str += fmt.Sprintf("\t时间跨度:%.2f", second)
+
+		if config.G_filterConfig.Mode == "bigt" {
+			second := (*this.endTime).Sub(*this.beginTime).Seconds()
+
+			if second >= float64(config.G_filterConfig.BigTime) {
+				str += fmt.Sprintf("\t时间跨度:%.2f", second)
+			}
 		}
 
 		str += "\n\n"
-
 		this.WriteAll(str)
 	}
 
+	this.sqlArray = nil
 	this.beginTime = nil
 	this.endTime = nil
-	// le := len(this.sqlArray)
-	// // for i := 0; i < le; i++ {
-	// // 	fmt.Println("ddd:", this.sqlArray[i])
-	// // }
-
-	// le1 := le / 4
-
-	// if le1 >= 2 {
-	// 	str := strings.Split(this.sqlArray[0].GetSql(), "时间戳:")
-	// 	if len(str) < 2 {
-	// 		fmt.Println("dddddddddd")
-	// 		return
-	// 	}
-	// 	str1 := str[1]
-	// 	stra := strings.Split(str1, " ")
-	// 	this.beginTime = stra[0] + " " + stra[1]
-
-	// 	str2 := strings.Split(this.sqlArray[le-4].GetSql(), "时间戳:")
-	// 	if len(str2) < 2 {
-	// 		fmt.Println("gggggggggg")
-	// 		return
-	// 	}
-	// 	str11 := str2[1]
-	// 	stra2 := strings.Split(str11, " ")
-	// 	this.endTime = stra2[0] + " " + stra2[1]
-
-	// 	begin, _ := time.ParseInLocation("2006-01-02 15:04:05", this.beginTime, time.Local)
-	// 	end, _ := time.ParseInLocation("2006-01-02 15:04:05", this.endTime, time.Local)
-	// 	region := end.Sub(begin).Minutes()
-	// 	// fmt.Println(begin)
-
-	// 	rrrr := fmt.Sprintf("时间跨度%.2f分钟 开始时间:%s 结束时间:%s\n", region, this.beginTime, this.endTime)
-	// 	fmt.Println(rrrr)
-	// 	if region >= 0.11 && region <= 100.0 {
-	// 		this.WriteAll(rrrr)
-	// 	}
-	// }
-
 }
 
 func (this *Transaction) WriteAll(str string) {
-	// fmt.Println("writeall:", str)
 	if nil == this.outputFile {
 		return
 	}

@@ -31,7 +31,7 @@ var (
 	endPos               = flag.Int("end-pos", 0, "日志解析终点")
 	startTime            = flag.String("start-time", "", "日志解析开始时间点")
 	endTime              = flag.String("end-time", "", "日志解析结束时间点")
-	mode                 = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式  pre:预解析模式 可统计事务的记录条数")
+	mode                 = flag.String("mode", "mark", "运行模式 parse:解析模式  mark:记录时间点模式  pre:预解析模式 可统计事务的记录条数 bigt:大事务解析")
 	needReverse          = flag.Bool("rsv", true, "是否需要反向操作语句")
 	withDDL              = flag.Bool("with-ddl", false, "是否解析ddl语句")
 	filterColumn         = flag.String("filter-column", "", "update(字段|改动前|改动后,字段|改动前|改动后) insert (字段|改动后) insert 与 update 用:连接 ")
@@ -40,6 +40,7 @@ var (
 	limitShowRow         = flag.Int("limit", 2, "pre模式下影响行数超过此值的予以显示")
 	output               = flag.String("output", "stdout", "结果生成文件")
 	xid                  = flag.Int64("xid", 0, "单个事务解析")
+	bigTime              = flag.Int("bigtime", 60, "大事务持续时间过滤")
 )
 
 func main() {
@@ -115,12 +116,13 @@ func ConfigCheck(cfg *config.Config) {
 	}
 
 	config.G_filterConfig.Mode = strings.ToLower(*mode)
-	if config.G_filterConfig.Mode != "mark" && config.G_filterConfig.Mode != "parse" && config.G_filterConfig.Mode != "pre" {
-		fmt.Println("mode必须为mark、parse、pre")
+	if config.G_filterConfig.Mode != "mark" && config.G_filterConfig.Mode != "parse" && config.G_filterConfig.Mode != "pre" && config.G_filterConfig.Mode != "bigt" {
+		fmt.Println("mode必须为mark、parse、pre、bigt")
 		flag.Usage()
 		os.Exit(1)
 	}
 
+	config.G_filterConfig.BigTime = *bigTime
 	config.G_filterConfig.NeedReverse = *needReverse
 	config.G_filterConfig.Origin = *origin
 	config.G_filterConfig.Limit = *limitShowRow
