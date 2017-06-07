@@ -45,16 +45,19 @@ func (this *LogParser) Parse(header *LogHeader, logBuf *mysql.LogBuffer, SwitchF
 		}
 	case WRITE_ROWS_EVENT_V1, WRITE_ROWS_EVENT:
 		{
+
 			// fmt.Println("eventType: WRITE logBuf:", logBuf.GetRestLen())
 			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case UPDATE_ROWS_EVENT_V1, UPDATE_ROWS_EVENT:
 		{
+
 			// fmt.Println("eventType: UPDATE logBuf:", logBuf.GetRestLen())
 			this.ReadRowEvent(header, event_type, logBuf)
 		}
 	case DELETE_ROWS_EVENT_V1, DELETE_ROWS_EVENT:
 		{
+
 			// fmt.Println("eventType: DELETE logBuf:", logBuf.GetRestLen())
 			this.ReadRowEvent(header, event_type, logBuf)
 		}
@@ -752,7 +755,7 @@ func (this *LogParser) fetchValue(logbuf *mysql.LogBuffer, columnType byte, meta
 		{
 			javaType = REAL
 			value, typeLen = logbuf.GetFloat32(), 4
-			fmt.Println("float32:", value)
+			// fmt.Println("float32:", value)
 		}
 	case mysql.MYSQL_TYPE_DOUBLE:
 		{

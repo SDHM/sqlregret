@@ -150,12 +150,15 @@ func (this *Transaction) output(full bool) {
 
 func (this *Transaction) oneTransactionOutPut(full bool) {
 
-	second := (*this.endTime).Sub(*this.beginTime).Seconds()
-	if config.G_filterConfig.Mode == "bigt" && int(second) < config.G_filterConfig.BigTime {
-		this.beginTime = nil
-		this.endTime = nil
-		this.sqlArray = nil
-		return
+	if config.G_filterConfig.Mode == "bigt" {
+		second := (*this.endTime).Sub(*this.beginTime).Seconds()
+
+		if second < float64(config.G_filterConfig.BigTime) {
+			this.beginTime = nil
+			this.endTime = nil
+			this.sqlArray = nil
+			return
+		}
 	}
 
 	effectorRow := this.sqlCount / 4
