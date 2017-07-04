@@ -2,11 +2,11 @@ package client
 
 import (
 	"fmt"
-	"github.com/siddontang/go-log/log"
 	"os"
 	"testing"
 	"time"
-	"tsg/protocol"
+
+	"github.com/siddontang/go-log/log"
 )
 
 func Slave1() {
@@ -44,7 +44,6 @@ func Slave2() {
 	conn.Dump(107, "mysql-bin.000001", EntryCallback)
 	fmt.Println("end dump")
 }
-
 
 func TestMysqlConn(t *testing.T) {
 	//go Slave1()

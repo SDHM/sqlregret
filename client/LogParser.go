@@ -546,7 +546,7 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 				}
 			} else {
 				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
-					sql += column.GetName() + "='" + column.GetValue() + "'"
+					sql += column.GetName() + "='" + column.GetValue() + "' "
 				} else {
 					sql += column.GetName() + "=" + column.GetValue()
 				}
@@ -576,7 +576,7 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 				}
 			} else {
 				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
-					sql += column.GetName() + "='" + column.GetValue() + "'"
+					sql += column.GetName() + "='" + column.GetValue() + "' "
 				} else {
 					sql += column.GetName() + "=" + column.GetValue()
 				}
@@ -665,10 +665,18 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 			}
 		} else if before[index].GetValue() != "" && after[index].GetValue() == "" {
 			updateCount2 += 1
-			if this.isSqlTypeString(JavaType(column.GetSqlType())) {
-				sqlregret += column.GetName() + "='" + before[index].GetValue() + "'"
+			if updateCount != updateCount2 {
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sqlregret += column.GetName() + "='" + before[index].GetValue() + "', "
+				} else {
+					sqlregret += column.GetName() + "=" + before[index].GetValue() + ", "
+				}
 			} else {
-				sqlregret += column.GetName() + "=" + before[index].GetValue()
+				if this.isSqlTypeString(JavaType(column.GetSqlType())) {
+					sqlregret += column.GetName() + "='" + before[index].GetValue() + "' "
+				} else {
+					sqlregret += column.GetName() + "=" + before[index].GetValue()
+				}
 			}
 		}
 	}
