@@ -360,7 +360,7 @@ func (this *LogParser) transformToSqlInsert(logHeader *LogHeader, tableMapEvent 
 	}
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	rstSql := fmt.Sprintf("时间戳:%s\t插入语句为:", timeSnap.Format("2006-01-02 15:04:05"))
+	rstSql := fmt.Sprintf("时间戳:%s\tpos:%d\t插入语句为:", timeSnap.Format("2006-01-02 15:04:05"), logHeader.GetLogPos())
 
 	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
 	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sql+";", !config.G_filterConfig.Dump))
@@ -408,7 +408,7 @@ func (this *LogParser) transformToSqlDelete(logHeader *LogHeader, tableMapEvent 
 	}
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	rstSql := fmt.Sprintf("时间戳:%s\t删除语句为:", timeSnap.Format("2006-01-02 15:04:05"))
+	rstSql := fmt.Sprintf("时间戳:%s\tpos:%d\t删除语句为:", timeSnap.Format("2006-01-02 15:04:05"), logHeader.GetLogPos())
 
 	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
 	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sql, !config.G_filterConfig.Dump))
@@ -592,7 +592,7 @@ func (this *LogParser) transformToSqlUpdate(logHeader *LogHeader, tableMapEvent 
 	sql += fmt.Sprintf(" where %s=%s", keyName, keyValue)
 
 	timeSnap := time.Unix(logHeader.timeSnamp, 0)
-	rstSql := fmt.Sprintf("时间戳:%s  update语句:", timeSnap.Format("2006-01-02 15:04:05"))
+	rstSql := fmt.Sprintf("时间戳:%s\tpos:%d\tupdate语句:", timeSnap.Format("2006-01-02 15:04:05"), logHeader.GetLogPos())
 
 	G_transaction.AppendSQL(&timeSnap, NewShowSql(true, rstSql, !config.G_filterConfig.Dump))
 	G_transaction.AppendSQL(&timeSnap, NewShowSql(false, sql+";", !config.G_filterConfig.Dump))
