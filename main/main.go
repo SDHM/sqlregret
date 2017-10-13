@@ -10,7 +10,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"utility"
 
 	"github.com/SDHM/sqlregret/client"
 	"github.com/SDHM/sqlregret/config"
@@ -71,7 +70,7 @@ func main() {
 	}
 
 	// 准备处理信号
-	sh := utility.NewSignalHandler()
+	sh := NewSignalHandler()
 	sh.Register(os.Interrupt, exitSignal)
 	sh.Register(syscall.SIGTERM, exitSignal)
 	sh.Register(syscall.SIGUSR1, reloadSignal)
