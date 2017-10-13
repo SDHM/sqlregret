@@ -1,5 +1,11 @@
 ###sql后悔药使用手册
+###注意
 
+    使用该程序之前，数据库日志必须设置为row模式
+    binlog_format = ROW
+    binlog_row_image = FULL
+
+    ROW 模式也分几个等级 设置为FULL才能解析出所有列
 ####配置文件说明
 <pre>
 {
